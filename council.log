@@ -1,0 +1,57 @@
+2025-12-05 13:41:37,684 [INFO] llm.council: Config check: COUNCIL_MODELS=3 | CHAIRMAN_MODEL=google/gemini-2.0-flash
+2025-12-05 13:41:37,690 [INFO] llm.council: Models to query: ['tngtech/deepseek-r1t2-chimera:free', 'nvidia/nemotron-nano-12b-v2-vl:free', 'z-ai/glm-4.5-air:free']
+2025-12-05 13:41:42,829 [INFO] httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-05 13:41:43,306 [INFO] httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-05 13:41:44,233 [INFO] httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-05 13:50:54,097 [INFO] llm.council: [COUNCIL START] Query: 
+You are a credibility-checking assistant for hiring.
+
+Structured data for this candidate:
+
+CV JSON:
+{"lastName": "Naveid R", "firstName": "Rehan", "address": "Chennai", "email": "rehannaveid83@gmail....
+2025-12-05 13:50:54,105 [INFO] llm.council: Config check: COUNCIL_MODELS=3 | CHAIRMAN_MODEL=google/gemini-2.0-flash
+2025-12-05 13:50:54,105 [INFO] llm.council: [STAGE 1 START] Prompt chars=84361 | Models=3
+2025-12-05 13:50:54,105 [DEBUG] llm.council: [STAGE 1 PROMPT PREVIEW] 
+You are a credibility-checking assistant for hiring.
+
+Structured data for this candidate:
+
+CV JSON:
+{"lastName": "Naveid R", "firstName": "Rehan", "address": "Chennai", "email": "rehannaveid83@gmail.com", "phone": "+91-6374333934", "linkedin": "linkedin.com/in/RehanNaveid", "github": "github.com/Re...
+2025-12-05 13:50:54,105 [INFO] llm.council: [STAGE 1] Models to query: ['tngtech/deepseek-r1t2-chimera:free', 'nvidia/nemotron-nano-12b-v2-vl:free', 'z-ai/glm-4.5-air:free']
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1] Received 3 raw responses
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1] Model 'tngtech/deepseek-r1t2-chimera:free' status: OK
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1] tngtech/deepseek-r1t2-chimera:free: Raw content len=3951
+2025-12-05 13:52:44,895 [DEBUG] llm.council: [STAGE 1] tngtech/deepseek-r1t2-chimera:free RAW PREVIEW: 
+
+### Credibility Assessment: Rehan Naveid  
+**Position Applied:** Java Backend Developer (or similar roles)  
+
+---
+
+#### **1. Authenticity & Consistency Analysis**  
+
+##### **Key Inconsistencies & Re...
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1] tngtech/deepseek-r1t2-chimera:free: normalize_json SUCCESS | Keys: None
+2025-12-05 13:52:44,895 [WARNING] llm.council: [STAGE 1] tngtech/deepseek-r1t2-chimera:free: No valid JSON after normalization
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1] Model 'nvidia/nemotron-nano-12b-v2-vl:free' status: OK
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1] nvidia/nemotron-nano-12b-v2-vl:free: Raw content len=3981
+2025-12-05 13:52:44,895 [DEBUG] llm.council: [STAGE 1] nvidia/nemotron-nano-12b-v2-vl:free RAW PREVIEW: ### **1. Authenticity & Consistency Assessment**  
+#### **Red Flags:**  
+- **Name Mismatch**: The GitHub profile is registered under **Velan Vijatovic** (name: Velan), while the CV and LinkedIn list *...
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1] nvidia/nemotron-nano-12b-v2-vl:free: normalize_json SUCCESS | Keys: None
+2025-12-05 13:52:44,895 [WARNING] llm.council: [STAGE 1] nvidia/nemotron-nano-12b-v2-vl:free: No valid JSON after normalization
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1] Model 'z-ai/glm-4.5-air:free' status: OK
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1] z-ai/glm-4.5-air:free: Raw content len=5478
+2025-12-05 13:52:44,895 [DEBUG] llm.council: [STAGE 1] z-ai/glm-4.5-air:free RAW PREVIEW: ### **Authenticity & Consistency Analysis**
+
+#### **1. Personal Information Inconsistencies**  
+- **Name**:  
+  - CV: `Rehan Naveid R`  
+  - LinkedIn: `Rehan Naveid`  
+  - *Issue*: Middle name "R" in ...
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1] z-ai/glm-4.5-air:free: normalize_json SUCCESS | Keys: None
+2025-12-05 13:52:44,895 [WARNING] llm.council: [STAGE 1] z-ai/glm-4.5-air:free: No valid JSON after normalization
+2025-12-05 13:52:44,895 [INFO] llm.council: [STAGE 1 COMPLETE] 0/3 valid responses
+2025-12-05 13:52:44,895 [ERROR] llm.council: [COUNCIL FAILED] No valid Stage 1 responses
