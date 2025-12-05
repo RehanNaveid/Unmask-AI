@@ -1,0 +1,36 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://db.psdttjforporgplebbfk.supabase.co:5432/postgres
+    username: postgres
+    password: cribe
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+app:
+  supabase:
+    url: "https://psdttjforporgplebbfk.supabase.co"
+    storage-bucket-cv: cv
+    storage-bucket-linkedin: linkedin
+    anon-key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzZHR0amZvcnBvcmdwbGViYmZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3NDY3NDIsImV4cCI6MjA4MDMyMjc0Mn0.N0NfskqOmm4bvn3rSyMfsLj76mGAvhsRfN4BWipf4uM"
+    service-key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzZHR0amZvcnBvcmdwbGViYmZrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDc0Njc0MiwiZXhwIjoyMDgwMzIyNzQyfQ.zEsuBNdu-VZ-gqraS8T186QTevO6lGb5ZDdXiNpJR0c"
+
+upstash:
+  url: "https://genuine-teal-31345.upstash.io"
+  token: "AXpxAAIncDJmZGYxZjAxYTJjZTU0M2FjYjQzMjFhNmEzMWYwNTYyN3AyMzEzNDU"
+
+llm-council:
+  url: "http://localhost:8001"
+
+groq:
+  api-key: "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"
