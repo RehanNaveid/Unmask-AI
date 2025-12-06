@@ -1,8 +1,9 @@
 package com.example.Unmask.dto;
 
 import lombok.*;
+
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Data
 @Builder
@@ -10,82 +11,65 @@ import java.util.Map;
 @AllArgsConstructor
 public class CvData {
 
-    private String lastName;
     private String firstName;
-    private String address;
+    private String lastName;
     private String email;
     private String phone;
     private String linkedin;
     private String github;
-    private String personalWebsite;
-    private String professionalSummary;
     private String jobTitle;
+    private String address;
 
-    private List<Experience> professionalExperiences;
-    private List<Experience> otherExperiences;
-    private List<Education> educations;
-    private List<String> skills;
-    private List<Language> languages;
-    private List<String> publications;
-    private List<String> distinctions;
-    private List<String> hobbies;
-    private List<String> references;
-    private List<Certification> certifications;
+    // SKILLS
+    @Builder.Default
+    private List<String> skills = new ArrayList<>();
 
-    private Map<String,Object> other;
+    // EDUCATION
+    @Builder.Default
+    private List<Education> educations = new ArrayList<>();
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Experience {
-        private String companyName;
-        private String title;
-        private String location;
-        private String type;
-        private Integer startYear;
-        private Integer startMonth;
-        private Integer endYear;
-        private Integer endMonth;
-        private Boolean ongoing;
-        private String description;
-        private List<String> associatedSkills;
-    }
+    // EXPERIENCE
+    @Builder.Default
+    private List<Experience> professionalExperiences = new ArrayList<>();
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
+    // PROJECTS
+    @Builder.Default
+    private List<Project> projects = new ArrayList<>();
+
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class Education {
-        private String degree;
         private String institution;
+        private String degree;
+        private Integer startYear;
+        private Integer endYear;
+        private String description;
+    }
+
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class Experience {
+        private String title;
+        private String companyName;
         private String location;
         private Integer startYear;
-        private Integer startMonth;
         private Integer endYear;
-        private Integer endMonth;
-        private Boolean ongoing;
+        private boolean ongoing;
         private String description;
-        private List<String> associatedSkills;
+
+        @Builder.Default
+        private List<String> skills = new ArrayList<>();
     }
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Language {
-        private String language;
-        private String level;
-    }
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Certification {
-        private String title;
-        private String issuer;
-        private Integer issuedYear;
-        private Integer issuedMonth;
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class Project {
+        private String name;
+        private String description;
+        private Integer startYear;
+        private Integer endYear;
+
+        @Builder.Default
+        private List<String> skills = new ArrayList<>();
     }
 }

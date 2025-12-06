@@ -1,17 +1,20 @@
 package com.example.Unmask.service;
+
 import com.example.Unmask.dto.CvData;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import jakarta.annotation.PostConstruct;
 
 @Slf4j
 @Service
@@ -24,389 +27,460 @@ public class VisionParsingService {
     private final PdfImageService pdfImageService;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    private Map<String,Object> cvSchema;
+    private Map<String, Object> cvSchema;
+    private Map<String, Object> linkedinSchema;
 
     @PostConstruct
     public void init() {
-        cvSchema = buildCvDataSchema();
+        cvSchema = buildCvSchema();
+        linkedinSchema = buildLinkedinSchema();
     }
 
-    public CvData parseCvPdf(Path pdfPath, String tempDirSuffix) {
-        Path outDir = pdfPath.getParent().resolve("cv_images_" + tempDirSuffix);
+    // ===================================================================
+    // PUBLIC API
+    // ===================================================================
+
+    public CvData parseCvPdf(Path pdfPath, String suffix) {
+        Path outDir = pdfPath.getParent().resolve("cv_images_" + suffix);
         List<Path> images = pdfImageService.convertPdfToImages(pdfPath, outDir);
 
-        List<CvData> pageData = new ArrayList<>();
+        List<CvData> pages = new ArrayList<>();
         for (Path img : images) {
             try {
-                String base64 = encodeImage(img);
-                Map<String,Object> raw = callGroqVision(base64, "cv");
-                CvData cleaned = cleanAndFixCvData(raw);
-                pageData.add(cleaned);
-            } catch (Exception e) {
-                log.warn("Failed to parse CV page {}: {}", img, e.getMessage());
+                String b64 = encode(img);
+                Map<String, Object> raw = callGroqVision(b64, "cv");
+                pages.add(cleanRaw(raw, "cv"));
+            } catch (Exception ex) {
+                log.warn("CV parsing failed on {}: {}", img, ex.getMessage());
             }
         }
-        cleanupTempDir(outDir);
-        return mergeCvData(pageData);
+        cleanup(outDir);
+        return merge(pages);
     }
 
-    public CvData parseLinkedinPdf(Path pdfPath, String tempDirSuffix) {
-        Path outDir = pdfPath.getParent().resolve("linkedin_images_" + tempDirSuffix);
+    public CvData parseLinkedinPdf(Path pdfPath, String suffix) {
+        Path outDir = pdfPath.getParent().resolve("linkedin_images_" + suffix);
         List<Path> images = pdfImageService.convertPdfToImages(pdfPath, outDir);
 
-        List<CvData> pageData = new ArrayList<>();
+        List<CvData> pages = new ArrayList<>();
         for (Path img : images) {
             try {
-                String base64 = encodeImage(img);
-                Map<String,Object> raw = callGroqVision(base64, "linkedin");
-                CvData cleaned = cleanAndFixCvData(raw);
-                pageData.add(cleaned);
-            } catch (Exception e) {
-                log.warn("Failed to parse LinkedIn page {}: {}", img, e.getMessage());
+                String b64 = encode(img);
+                Map<String, Object> raw = callGroqVision(b64, "linkedin");
+                pages.add(cleanRaw(raw, "linkedin"));
+            } catch (Exception ex) {
+                log.warn("LinkedIn parsing failed on {}: {}", img, ex.getMessage());
             }
         }
-        cleanupTempDir(outDir);
-        return mergeCvData(pageData);
+        cleanup(outDir);
+        return merge(pages);
     }
 
-    private String encodeImage(Path imagePath) throws Exception {
-        byte[] bytes = Files.readAllBytes(imagePath);
-        return Base64.getEncoder().encodeToString(bytes);
-    }
-
-    private void cleanupTempDir(Path dir) {
-        try {
-            if (Files.exists(dir)) {
-                Files.walk(dir)
-                        .sorted(Comparator.reverseOrder())
-                        .forEach(p -> {
-                            try {
-                                Files.deleteIfExists(p);
-                            } catch (Exception ignored) {}
-                        });
-            }
-        } catch (Exception e) {
-            log.warn("Failed to cleanup temp dir {}", dir);
-        }
-    }
+    // ===================================================================
+    // GROQ VISION STRICT CALL WITH RETRY
+    // ===================================================================
 
     @SuppressWarnings("unchecked")
-    private Map<String,Object> callGroqVision(String base64Image, String documentType) throws Exception {
+    private Map<String, Object> callGroqVision(String base64, String type) throws Exception {
         String url = "https://api.groq.com/openai/v1/chat/completions";
 
-        String systemPrompt = """
-You are a CV/Resume parser. Extract information from the CV image and return it as valid JSON matching the provided JSON schema.
-Guidelines:
-- Extract years and months as integers.
-- For ongoing positions: "ongoing": true, omit endYear/endMonth.
-- Do not include any text outside the JSON object.
+        String system = """
+You are an expert CV/LinkedIn parser.
+Return ONLY a JSON object that matches the schema.
+No explanations. No text outside JSON.
+NO extra fields. NO hallucinations.
 """;
 
-        String userPrompt = "Extract CV information from this image and return JSON with this schema: "
-                + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(cvSchema);
+        Map<String, Object> schema = type.equals("cv") ? cvSchema : linkedinSchema;
+        String schemaJson = mapper.writeValueAsString(schema);
 
-        List<Map<String,Object>> messageContent = List.of(
+        String userPrompt =
+                (type.equals("cv") ? "Parse this CV page using schema:\n" :
+                        "Parse this LinkedIn page using schema:\n")
+                        + schemaJson + "\nReturn ONLY JSON.";
+
+        List<Map<String, Object>> contentList = List.of(
                 Map.of("type", "text", "text", userPrompt),
-                Map.of("type", "image_url",
-                        "image_url", Map.of("url", "data:image/png;base64," + base64Image))
+                Map.of("type", "image_url", "image_url",
+                        Map.of("url", "data:image/png;base64," + base64))
         );
 
-        Map<String,Object> body = new HashMap<>();
+        Map<String, Object> body = new HashMap<>();
         body.put("model", "meta-llama/llama-4-maverick-17b-128e-instruct");
         body.put("messages", List.of(
-                Map.of("role", "system", "content", systemPrompt),
-                Map.of("role", "user", "content", messageContent)
+                Map.of("role", "system", "content", system),
+                Map.of("role", "user", "content", contentList)
         ));
         body.put("response_format", Map.of("type", "json_object"));
-        body.put("temperature", 0.2);
+        body.put("temperature", 0);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(groqApiKey);
+        HttpHeaders h = new HttpHeaders();
+        h.setBearerAuth(groqApiKey);
+        h.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<String> entity = new HttpEntity<>(mapper.writeValueAsString(body), headers);
+        SimpleClientHttpRequestFactory rf = new SimpleClientHttpRequestFactory();
+        rf.setConnectTimeout(10_000);
+        rf.setReadTimeout(30_000);
+        RestTemplate rt = new RestTemplate(rf);
 
-        ResponseEntity<String> resp = new RestTemplate()
-                .exchange(url, HttpMethod.POST, entity, String.class);
+        HttpEntity<String> entity = new HttpEntity<>(mapper.writeValueAsString(body), h);
+
+        ResponseEntity<String> resp = callWithRetry(rt, url, entity);
 
         if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
-            throw new RuntimeException("Groq Vision error: " + resp.getStatusCode());
-        }
-
-        Map<String,Object> completion = mapper.readValue(resp.getBody(), new TypeReference<>() {});
-        List<Map<String,Object>> choices = (List<Map<String,Object>>) completion.get("choices");
-        if (choices == null || choices.isEmpty()) {
+            log.warn("Groq Vision failed after retries. status={} body={}",
+                    resp.getStatusCode(), resp.getBody());
             return Map.of();
         }
 
-        Map<String,Object> message = (Map<String,Object>) choices.get(0).get("message");
-        Object contentObj = message.get("content");
-        if (contentObj instanceof String s) {
+        Map<String, Object> json = mapper.readValue(resp.getBody(), new TypeReference<>() {});
+        List<?> choices = (List<?>) json.get("choices");
+        if (choices == null || choices.isEmpty()) return Map.of();
+
+        Map<String, Object> msg = (Map<String, Object>) ((Map<?, ?>) choices.get(0)).get("message");
+        if (msg == null) return Map.of();
+
+        String content = Objects.toString(msg.get("content"), "");
+        try {
+            return mapper.readValue(content, new TypeReference<>() {});
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    private ResponseEntity<String> callWithRetry(RestTemplate rt,
+                                                 String url,
+                                                 HttpEntity<String> entity) {
+        int maxRetries = 4;
+        long baseDelayMs = 500L;
+
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            ResponseEntity<String> resp;
             try {
-                return mapper.readValue(s, new TypeReference<>() {});
-            } catch (Exception e) {
-                // try to extract JSON substring
-                String json = extractJson(s);
-                return json != null ? mapper.readValue(json, new TypeReference<>() {}) : Map.of();
+                resp = rt.postForEntity(url, entity, String.class);
+            } catch (Exception ex) {
+                if (attempt == maxRetries) {
+                    log.warn("Groq call failed (network) after {} attempts: {}",
+                            attempt + 1, ex.getMessage());
+                    throw ex;
+                }
+                long delayMs = (long) (baseDelayMs * Math.pow(2, attempt));
+                sleep(delayMs);
+                continue;
             }
-        } else {
-            return Map.of();
+
+            int status = resp.getStatusCode().value();
+
+            if (status >= 200 && status < 300) {
+                return resp;
+            }
+
+            if ((status == 429 || status >= 500) && attempt < maxRetries) {
+                long delayMs = computeDelayMs(resp, baseDelayMs, attempt);
+                log.warn("Groq call got status {} – retrying in {} ms (attempt {}/{})",
+                        status, delayMs, attempt + 1, maxRetries);
+                sleep(delayMs);
+                continue;
+            }
+
+            return resp;
+        }
+
+        return new ResponseEntity<>(HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    private long computeDelayMs(ResponseEntity<String> resp,
+                                long baseDelayMs,
+                                int attempt) {
+        String retryAfter = resp.getHeaders().getFirst("retry-after");
+        if (retryAfter != null) {
+            try {
+                return Long.parseLong(retryAfter) * 1000L;
+            } catch (NumberFormatException ignore) { }
+        }
+        long backoff = (long) (baseDelayMs * Math.pow(2, attempt));
+        long jitter = new Random().nextInt(250);
+        return backoff + jitter;
+    }
+
+    private void sleep(long delayMs) {
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
         }
     }
 
-    private String extractJson(String text) {
-        int start = text.indexOf('{');
-        int end = text.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return text.substring(start, end + 1);
-        }
-        return null;
-    }
+    // ===================================================================
+    // CLEAN RAW JSON INTO CvData (with nullable checks)
+    // ===================================================================
 
     @SuppressWarnings("unchecked")
-    private CvData cleanAndFixCvData(Map<String,Object> rawData) {
-        if (rawData == null || rawData.isEmpty()) {
-            return emptyCvData();
-        }
+    private CvData cleanRaw(Map<String, Object> raw, String type) {
+        if (raw == null || raw.isEmpty()) return empty();
 
-        // normalize Hobbies -> hobbies, etc.
-        if (rawData.containsKey("Hobbies") && !rawData.containsKey("hobbies")) {
-            rawData.put("hobbies", rawData.get("Hobbies"));
-        }
+        CvData.CvDataBuilder b = CvData.builder();
 
-        // fix numeric fields that may be strings
-        List<String> numberFields = List.of(
-                "startYear","endYear","startMonth","endMonth","issuedYear","issuedMonth"
-        );
+        if (type.equals("linkedin")) {
+            String name = opt(raw, "name");
+            String[] parts = name.trim().isEmpty() ? new String[0] : name.trim().split("\\s+", 2);
+            b.firstName(parts.length > 0 ? parts[0] : "");
+            b.lastName(parts.length > 1 ? parts[1] : "");
+            b.jobTitle(opt(raw, "jobTitle"));
+            b.address(opt(raw, "location"));
 
-        java.util.function.Consumer<Map<String,Object>> fixNumberFields = obj -> {
-            for (String f : numberFields) {
-                Object v = obj.get(f);
-                if (v == null) continue;
-                if (v instanceof Number) continue;
-                if (v instanceof String s) {
-                    if (s.isBlank()) {
-                        obj.remove(f);
-                    } else {
-                        try {
-                            obj.put(f, Integer.parseInt(s.trim()));
-                        } catch (NumberFormatException ex) {
-                            obj.remove(f);
-                        }
-                    }
-                }
+            Object contactObj = raw.get("contact");
+            if (contactObj instanceof Map<?, ?> contactMap) {
+                Map<String, Object> contact = cast(contactMap);
+                if (contact.containsKey("email")) b.email(opt(contact, "email"));
+                if (contact.containsKey("phone")) b.phone(opt(contact, "phone"));
+            } else {
+                if (raw.containsKey("email")) b.email(opt(raw, "email"));
+                if (raw.containsKey("phone")) b.phone(opt(raw, "phone"));
             }
-        };
 
-        List<Map<String,Object>> prof = (List<Map<String,Object>>) rawData.getOrDefault("professionalExperiences", List.of());
-        prof.forEach(fixNumberFields);
-        List<Map<String,Object>> otherExp = (List<Map<String,Object>>) rawData.getOrDefault("otherExperiences", List.of());
-        otherExp.forEach(fixNumberFields);
-        List<Map<String,Object>> educations = (List<Map<String,Object>>) rawData.getOrDefault("educations", List.of());
-        educations.forEach(fixNumberFields);
-        List<Map<String,Object>> certs = (List<Map<String,Object>>) rawData.getOrDefault("certifications", List.of());
-        certs.forEach(fixNumberFields);
-
-        // Map into CvData
-        CvData.CvDataBuilder b = CvData.builder()
-                .lastName((String) rawData.getOrDefault("lastName",""))
-                .firstName((String) rawData.getOrDefault("firstName",""))
-                .address((String) rawData.getOrDefault("address",""))
-                .email((String) rawData.getOrDefault("email",""))
-                .phone((String) rawData.getOrDefault("phone",""))
-                .linkedin((String) rawData.getOrDefault("linkedin",""))
-                .github((String) rawData.getOrDefault("github",""))
-                .personalWebsite((String) rawData.getOrDefault("personalWebsite",""))
-                .professionalSummary((String) rawData.getOrDefault("professionalSummary",""))
-                .jobTitle((String) rawData.getOrDefault("jobTitle",""))
-                .skills((List<String>) rawData.getOrDefault("skills", List.of()))
-                .publications((List<String>) rawData.getOrDefault("publications", List.of()))
-                .distinctions((List<String>) rawData.getOrDefault("distinctions", List.of()))
-                .hobbies((List<String>) rawData.getOrDefault("hobbies", List.of()))
-                .references((List<String>) rawData.getOrDefault("references", List.of()))
-                .other((Map<String,Object>) rawData.getOrDefault("other", Map.of()));
-
-        // experiences
-        List<CvData.Experience> profExps = new ArrayList<>();
-        for (Map<String,Object> e : prof) {
-            profExps.add(CvData.Experience.builder()
-                    .companyName((String) e.getOrDefault("companyName",""))
-                    .title((String) e.getOrDefault("title",""))
-                    .location((String) e.getOrDefault("location",""))
-                    .type((String) e.getOrDefault("type",""))
-                    .startYear((Integer) e.get("startYear"))
-                    .startMonth((Integer) e.get("startMonth"))
-                    .endYear((Integer) e.get("endYear"))
-                    .endMonth((Integer) e.get("endMonth"))
-                    .ongoing((Boolean) e.getOrDefault("ongoing", Boolean.FALSE))
-                    .description((String) e.getOrDefault("description",""))
-                    .associatedSkills((List<String>) e.getOrDefault("associatedSkills", List.of()))
-                    .build());
+            if (raw.containsKey("linkedin")) b.linkedin(opt(raw, "linkedin"));
+            if (raw.containsKey("github")) b.github(opt(raw, "github"));
+        } else {
+            b.firstName(opt(raw, "firstName"));
+            b.lastName(opt(raw, "lastName"));
+            if (raw.containsKey("email")) b.email(opt(raw, "email"));
+            if (raw.containsKey("phone")) b.phone(opt(raw, "phone"));
+            if (raw.containsKey("github")) b.github(opt(raw, "github"));
+            if (raw.containsKey("linkedin")) b.linkedin(opt(raw, "linkedin"));
+            b.jobTitle(opt(raw, "jobTitle"));
+            if (raw.containsKey("address")) b.address(opt(raw, "address"));
         }
-        b.professionalExperiences(profExps);
 
-        List<CvData.Experience> otherExps = new ArrayList<>();
-        for (Map<String,Object> e : otherExp) {
-            otherExps.add(CvData.Experience.builder()
-                    .companyName((String) e.getOrDefault("companyName",""))
-                    .title((String) e.getOrDefault("title",""))
-                    .location((String) e.getOrDefault("location",""))
-                    .type((String) e.getOrDefault("type",""))
-                    .startYear((Integer) e.get("startYear"))
-                    .startMonth((Integer) e.get("startMonth"))
-                    .endYear((Integer) e.get("endYear"))
-                    .endMonth((Integer) e.get("endMonth"))
-                    .ongoing((Boolean) e.getOrDefault("ongoing", Boolean.FALSE))
-                    .description((String) e.getOrDefault("description",""))
-                    .associatedSkills((List<String>) e.getOrDefault("associatedSkills", List.of()))
-                    .build());
+        Object skillsObj = raw.get("skills");
+        if (skillsObj instanceof List<?> s) {
+            List<String> skills = new ArrayList<>();
+            for (Object o : s) {
+                if (o != null) skills.add(o.toString());
+            }
+            b.skills(skills);
+        } else {
+            b.skills(List.of());
         }
-        b.otherExperiences(otherExps);
 
-        List<CvData.Education> eduList = new ArrayList<>();
-        for (Map<String,Object> e : educations) {
-            eduList.add(CvData.Education.builder()
-                    .degree((String) e.getOrDefault("degree",""))
-                    .institution((String) e.getOrDefault("institution",""))
-                    .location((String) e.getOrDefault("location",""))
-                    .startYear((Integer) e.get("startYear"))
-                    .startMonth((Integer) e.get("startMonth"))
-                    .endYear((Integer) e.get("endYear"))
-                    .endMonth((Integer) e.get("endMonth"))
-                    .ongoing((Boolean) e.getOrDefault("ongoing", Boolean.FALSE))
-                    .description((String) e.getOrDefault("description",""))
-                    .associatedSkills((List<String>) e.getOrDefault("associatedSkills", List.of()))
-                    .build());
-        }
-        b.educations(eduList);
-
-        List<Map<String,Object>> langsRaw = (List<Map<String,Object>>) rawData.getOrDefault("languages", List.of());
-        List<CvData.Language> langs = new ArrayList<>();
-        for (Map<String,Object> l : langsRaw) {
-            langs.add(CvData.Language.builder()
-                    .language((String) l.getOrDefault("language",""))
-                    .level((String) l.getOrDefault("level",""))
-                    .build());
-        }
-        b.languages(langs);
-
-        List<CvData.Certification> certList = new ArrayList<>();
-        for (Map<String,Object> c : certs) {
-            certList.add(CvData.Certification.builder()
-                    .title((String) c.getOrDefault("title",""))
-                    .issuer((String) c.getOrDefault("issuer",""))
-                    .issuedYear((Integer) c.get("issuedYear"))
-                    .issuedMonth((Integer) c.get("issuedMonth"))
-                    .build());
-        }
-        b.certifications(certList);
+        b.educations(parseEducations(raw.get("educations")));
+        b.professionalExperiences(parseExperiences(raw.get("professionalExperiences")));
+        b.projects(parseProjects(raw.get("projects")));
 
         return b.build();
     }
 
-    private CvData mergeCvData(List<CvData> list) {
-        if (list == null || list.isEmpty()) {
-            return emptyCvData();
+    private List<CvData.Project> parseProjects(Object obj) {
+        if (!(obj instanceof List<?> list)) return List.of();
+        List<CvData.Project> out = new ArrayList<>();
+
+        for (Object o : list) {
+            if (!(o instanceof Map<?, ?> raw)) continue;
+            Map<String, Object> m = cast(raw);
+
+            out.add(CvData.Project.builder()
+                    .name(opt(m, "name"))
+                    .description(opt(m, "description"))
+                    .startYear(parseInt(m.get("startYear")))
+                    .endYear(parseInt(m.get("endYear")))
+                    .skills((List<String>) m.getOrDefault("skills", List.of()))
+                    .build()
+            );
         }
-        CvData merged = emptyCvData();
+        return out;
+    }
+
+    private List<CvData.Experience> parseExperiences(Object obj) {
+        if (!(obj instanceof List<?> list)) return List.of();
+        List<CvData.Experience> out = new ArrayList<>();
+
+        for (Object o : list) {
+            if (!(o instanceof Map<?, ?> raw)) continue;
+            Map<String, Object> m = cast(raw);
+
+            out.add(CvData.Experience.builder()
+                    .title(opt(m, "title"))
+                    .companyName(opt(m, "companyName"))
+                    .location(opt(m, "location"))
+                    .description(opt(m, "description"))
+                    .startYear(parseInt(m.get("startYear")))
+                    .endYear(parseInt(m.get("endYear")))
+                    .ongoing(Boolean.TRUE.equals(m.get("ongoing")))
+                    .skills((List<String>) m.getOrDefault("skills", List.of()))
+                    .build()
+            );
+        }
+        return out;
+    }
+
+    private List<CvData.Education> parseEducations(Object obj) {
+        if (!(obj instanceof List<?> list)) return List.of();
+        List<CvData.Education> out = new ArrayList<>();
+
+        for (Object o : list) {
+            if (!(o instanceof Map<?, ?> raw)) continue;
+            Map<String, Object> m = cast(raw);
+
+            out.add(CvData.Education.builder()
+                    .institution(opt(m, "institution"))
+                    .degree(opt(m, "degree"))
+                    .startYear(parseInt(m.get("startYear")))
+                    .endYear(parseInt(m.get("endYear")))
+                    .description(opt(m, "description"))
+                    .build()
+            );
+        }
+        return out;
+    }
+
+    // ===================================================================
+    // MERGE PAGES
+    // ===================================================================
+
+    private CvData merge(List<CvData> list) {
+        if (list == null || list.isEmpty()) return empty();
+
+        CvData out = empty();
 
         for (CvData d : list) {
-            if (d == null) continue;
+            if (isNotBlank(d.getFirstName())) out.setFirstName(d.getFirstName());
+            if (isNotBlank(d.getLastName())) out.setLastName(d.getLastName());
+            if (isNotBlank(d.getEmail())) out.setEmail(d.getEmail());
+            if (isNotBlank(d.getPhone())) out.setPhone(d.getPhone());
+            if (isNotBlank(d.getGithub())) out.setGithub(d.getGithub());
+            if (isNotBlank(d.getLinkedin())) out.setLinkedin(d.getLinkedin());
+            if (isNotBlank(d.getJobTitle())) out.setJobTitle(d.getJobTitle());
+            if (isNotBlank(d.getAddress())) out.setAddress(d.getAddress());
 
-            if (merged.getLastName().isEmpty() && d.getLastName() != null) merged.setLastName(d.getLastName());
-            if (merged.getFirstName().isEmpty() && d.getFirstName() != null) merged.setFirstName(d.getFirstName());
-            if (merged.getAddress().isEmpty() && d.getAddress() != null) merged.setAddress(d.getAddress());
-            if (merged.getEmail().isEmpty() && d.getEmail() != null) merged.setEmail(d.getEmail());
-            if (merged.getPhone().isEmpty() && d.getPhone() != null) merged.setPhone(d.getPhone());
-            if (merged.getLinkedin().isEmpty() && d.getLinkedin() != null) merged.setLinkedin(d.getLinkedin());
-            if (merged.getGithub().isEmpty() && d.getGithub() != null) merged.setGithub(d.getGithub());
-            if (merged.getPersonalWebsite().isEmpty() && d.getPersonalWebsite() != null)
-                merged.setPersonalWebsite(d.getPersonalWebsite());
-            if (merged.getProfessionalSummary().isEmpty() && d.getProfessionalSummary() != null)
-                merged.setProfessionalSummary(d.getProfessionalSummary());
-            if (merged.getJobTitle().isEmpty() && d.getJobTitle() != null)
-                merged.setJobTitle(d.getJobTitle());
-
-            merged.getProfessionalExperiences().addAll(
-                    Optional.ofNullable(d.getProfessionalExperiences()).orElse(List.of()));
-            merged.getOtherExperiences().addAll(
-                    Optional.ofNullable(d.getOtherExperiences()).orElse(List.of()));
-            merged.getEducations().addAll(
-                    Optional.ofNullable(d.getEducations()).orElse(List.of()));
-
-            Set<String> skills = new LinkedHashSet<>(merged.getSkills());
-            skills.addAll(Optional.ofNullable(d.getSkills()).orElse(List.of()));
-            merged.setSkills(new ArrayList<>(skills));
-
-            merged.getLanguages().addAll(Optional.ofNullable(d.getLanguages()).orElse(List.of()));
-
-            merged.setPublications(mergeUnique(merged.getPublications(), d.getPublications()));
-            merged.setDistinctions(mergeUnique(merged.getDistinctions(), d.getDistinctions()));
-            merged.setHobbies(mergeUnique(merged.getHobbies(), d.getHobbies()));
-            merged.setReferences(mergeUnique(merged.getReferences(), d.getReferences()));
-            merged.getCertifications().addAll(Optional.ofNullable(d.getCertifications()).orElse(List.of()));
-
-            if (d.getOther() != null) {
-                Map<String,Object> other = new LinkedHashMap<>(merged.getOther());
-                other.putAll(d.getOther());
-                merged.setOther(other);
-            }
+            out.getSkills().addAll(d.getSkills());
+            out.getEducations().addAll(d.getEducations());
+            out.getProfessionalExperiences().addAll(d.getProfessionalExperiences());
+            out.getProjects().addAll(d.getProjects());
         }
 
-        return merged;
+        out.setSkills(new ArrayList<>(new LinkedHashSet<>(out.getSkills())));
+        return out;
     }
 
-    private List<String> mergeUnique(List<String> base, List<String> extra) {
-        Set<String> set = new LinkedHashSet<>(Optional.ofNullable(base).orElse(List.of()));
-        if (extra != null) set.addAll(extra);
-        return new ArrayList<>(set);
+    // ===================================================================
+    // SCHEMAS (STRICT)
+    // ===================================================================
+
+    private Map<String, Object> buildCvSchema() {
+        Map<String, Object> props = new LinkedHashMap<>();
+        props.put("firstName", str());
+        props.put("lastName", str());
+        props.put("email", str());
+        props.put("phone", str());
+        props.put("linkedin", str());
+        props.put("github", str());
+        props.put("jobTitle", str());
+        // props.put("address", str());
+
+        props.put("skills", arr(str()));
+
+        props.put("educations", arr(obj(Map.of(
+                "institution", str(),
+                "degree", str(),
+                "startYear", integer(),
+                "endYear", integer(),
+                "description", str()
+        ))));
+
+        props.put("professionalExperiences", arr(obj(Map.of(
+                "title", str(),
+                "companyName", str(),
+                "location", str(),
+                "description", str(),
+                "startYear", integer(),
+                "endYear", integer(),
+                "ongoing", bool(),
+                "skills", arr(str())
+        ))));
+
+        props.put("projects", arr(obj(Map.of(
+                "name", str(),
+                "description", str(),
+                "startYear", integer(),
+                "endYear", integer(),
+                "skills", arr(str())
+        ))));
+
+        return Map.of("type", "object", "properties", props, "additionalProperties", false);
     }
 
-    private CvData emptyCvData() {
+    private Map<String, Object> buildLinkedinSchema() {
+        Map<String, Object> props = new LinkedHashMap<>();
+        props.put("name", str());
+        props.put("jobTitle", str());
+        props.put("location", str());
+        props.put("email", str());
+        // props.put("phone", str());
+        props.put("linkedin", str());
+        // props.put("github", str());
+        props.put("skills", arr(str()));
+
+        props.put("educations", arr(obj(Map.of(
+                "institution", str(),
+                "degree", str()
+        ))));
+
+        return Map.of("type", "object", "properties", props, "additionalProperties", false);
+    }
+
+    private Map<String, Object> str() { return Map.of("type", "string"); }
+    private Map<String, Object> bool() { return Map.of("type", "boolean"); }
+    private Map<String, Object> integer() { return Map.of("type", "integer"); }
+    private Map<String, Object> arr(Object items) { return Map.of("type", "array", "items", items); }
+    private Map<String, Object> obj(Object props) { return Map.of("type", "object", "properties", props); }
+
+    // ===================================================================
+    // HELPERS
+    // ===================================================================
+
+    private Integer parseInt(Object o) {
+        try {
+            return (o == null) ? null : Integer.parseInt(o.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String opt(Map<String, Object> m, String key) {
+        if (m == null) return "";
+        Object v = m.get(key);
+        return v == null ? "" : v.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> cast(Object o) {
+        return (Map<String, Object>) o;
+    }
+
+    private boolean isNotBlank(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    private CvData empty() {
         return CvData.builder()
-                .lastName("")
-                .firstName("")
-                .address("")
-                .email("")
-                .phone("")
-                .linkedin("")
-                .github("")
-                .personalWebsite("")
-                .professionalSummary("")
-                .jobTitle("")
-                .professionalExperiences(new ArrayList<>())
-                .otherExperiences(new ArrayList<>())
-                .educations(new ArrayList<>())
                 .skills(new ArrayList<>())
-                .languages(new ArrayList<>())
-                .publications(new ArrayList<>())
-                .distinctions(new ArrayList<>())
-                .hobbies(new ArrayList<>())
-                .references(new ArrayList<>())
-                .certifications(new ArrayList<>())
-                .other(new LinkedHashMap<>())
+                .educations(new ArrayList<>())
+                .professionalExperiences(new ArrayList<>())
+                .projects(new ArrayList<>())
                 .build();
     }
 
-    private Map<String,Object> buildCvDataSchema() {
-        // For brevity, this is a minimal but representative subset; you can expand to full schema.
-        Map<String,Object> schema = new LinkedHashMap<>();
-        schema.put("type","object");
-        Map<String,Object> props = new LinkedHashMap<>();
-        props.put("lastName", Map.of("type","string"));
-        props.put("firstName", Map.of("type","string"));
-        props.put("address", Map.of("type","string"));
-        props.put("email", Map.of("type","string"));
-        props.put("phone", Map.of("type","string"));
-        props.put("linkedin", Map.of("type","string"));
-        props.put("github", Map.of("type","string"));
-        props.put("personalWebsite", Map.of("type","string"));
-        props.put("professionalSummary", Map.of("type","string"));
-        props.put("jobTitle", Map.of("type","string"));
-        props.put("skills", Map.of("type","array", "items", Map.of("type","string")));
-        schema.put("properties", props);
-        schema.put("additionalProperties", true);
-        return schema;
+    private String encode(Path p) throws Exception {
+        return Base64.getEncoder().encodeToString(Files.readAllBytes(p));
+    }
+
+    private void cleanup(Path dir) {
+        try {
+            if (!Files.exists(dir)) return;
+            Files.walk(dir).sorted(Comparator.reverseOrder())
+                    .forEach(f -> {
+                        try { Files.deleteIfExists(f); } catch (Exception ignore) { }
+                    });
+        } catch (Exception ignore) { }
     }
 }
-

@@ -43,7 +43,7 @@ public class GithubService {
     public Map<String, Object> fetchGithubData(String username) {
         String redisKey = "github:" + username;
 
-        // 1. Upstash cache
+        // 1) Redis cache
         try {
             String cached = redisClient.get(redisKey);
             if (cached != null) {
@@ -53,14 +53,26 @@ public class GithubService {
             log.warn("Redis cache read failed", e);
         }
 
-        // 2. DB cache
+        // 2) DB cache
         GithubCache cache = githubCacheRepository.findById(username).orElse(null);
         if (cache != null && cache.getExpiresAt().isAfter(Instant.now())) {
             try {
+                Map<String, Object> profile =
+                        objectMapper.readValue(cache.getProfileJson(), new TypeReference<>() {});
+                List<Map<String, Object>> repos =
+                        objectMapper.readValue(cache.getReposJson(), new TypeReference<>() {});
+                List<Map<String, Object>> events =
+                        objectMapper.readValue(cache.getEventsJson(), new TypeReference<>() {});
+
+                Map<String, Integer> languageHistogram = buildLanguageHistogram(repos);
+                int repoCount = repos != null ? repos.size() : 0;
+
                 Map<String, Object> result = new HashMap<>();
-                result.put("profile", objectMapper.readValue(cache.getProfileJson(), new TypeReference<>() {}));
-                result.put("repositories", objectMapper.readValue(cache.getReposJson(), new TypeReference<>() {}));
-                result.put("events", objectMapper.readValue(cache.getEventsJson(), new TypeReference<>() {}));
+                result.put("profile", profile);
+                result.put("repositories", repos);
+                result.put("events", events);
+                result.put("repo_count", repoCount);
+                result.put("language_histogram", languageHistogram);
 
                 redisClient.setex(redisKey, CACHE_TTL_SECONDS, objectMapper.writeValueAsString(result));
                 return result;
@@ -69,15 +81,20 @@ public class GithubService {
             }
         }
 
-        // 3. GitHub API (unauthenticated)
+        // 3) GitHub API (unauthenticated)
         Map<String, Object> profile = getJson("/users/" + username);
         List<Map<String, Object>> repos = getList("/users/" + username + "/repos");
         List<Map<String, Object>> events = getList("/users/" + username + "/events");
+
+        Map<String, Integer> languageHistogram = buildLanguageHistogram(repos);
+        int repoCount = repos != null ? repos.size() : 0;
 
         Map<String, Object> combined = new HashMap<>();
         combined.put("profile", profile);
         combined.put("repositories", repos);
         combined.put("events", events);
+        combined.put("repo_count", repoCount);
+        combined.put("language_histogram", languageHistogram);
 
         // Persist cache
         try {
@@ -109,7 +126,8 @@ public class GithubService {
             return resp.getBody();
         } catch (HttpStatusCodeException ex) {
             // Handle rate limit or 404 gracefully
-            if (ex.getStatusCode() == HttpStatus.FORBIDDEN || ex.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
+            if (ex.getStatusCode() == HttpStatus.FORBIDDEN
+                    || ex.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
                 log.error("GitHub rate limit reached (no token): {}", ex.getResponseBodyAsString());
                 throw new RuntimeException("GitHub rate limit reached (unauthenticated)");
             }
@@ -132,7 +150,8 @@ public class GithubService {
             }
             return resp.getBody();
         } catch (HttpStatusCodeException ex) {
-            if (ex.getStatusCode() == HttpStatus.FORBIDDEN || ex.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
+            if (ex.getStatusCode() == HttpStatus.FORBIDDEN
+                    || ex.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
                 log.error("GitHub rate limit reached (no token): {}", ex.getResponseBodyAsString());
                 throw new RuntimeException("GitHub rate limit reached (unauthenticated)");
             }
@@ -148,11 +167,23 @@ public class GithubService {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/vnd.github+json");
         headers.set("User-Agent", "unmasker-backend");
-        // DO NOT set Authorization when you don't want to use tokens
-        // If you later add a token, you can re-enable:
+        // If you later add a token, enable:
         // if (githubToken != null && !githubToken.isBlank()) {
         //     headers.setBearerAuth(githubToken);
         // }
         return headers;
+    }
+
+    private Map<String, Integer> buildLanguageHistogram(List<Map<String, Object>> repos) {
+        Map<String, Integer> histogram = new HashMap<>();
+        if (repos == null) return histogram;
+
+        for (Map<String, Object> repo : repos) {
+            Object lang = repo.get("language");
+            if (lang != null) {
+                histogram.merge(lang.toString(), 1, Integer::sum);
+            }
+        }
+        return histogram;
     }
 }

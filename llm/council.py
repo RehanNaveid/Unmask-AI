@@ -212,9 +212,12 @@ You are given:
 
 Your goals:
 1. Infer a final credibility label and score for this candidate.
-2. Consolidate the most important reasons supporting that verdict.
-3. Recommend what the hiring pipeline should do next.
-4. Suggest 2–3 targeted follow-up interview questions.
+2. For EACH CV project, decide whether GitHub evidence supports it and how strongly.
+3. Evaluate how well the candidate's claimed tech stack (languages + frameworks) is supported by GitHub.
+4. Consolidate the most important reasons supporting your verdict.
+5. Clearly separate RED FLAGS (serious issues) from YELLOW FLAGS (milder concerns).
+6. Recommend what the hiring pipeline should do next.
+7. Suggest 2–3 targeted follow-up interview questions.
 
 VERY IMPORTANT INSTRUCTIONS:
 - You MUST respond with STRICT, VALID JSON only.
@@ -223,12 +226,63 @@ VERY IMPORTANT INSTRUCTIONS:
 
 {{
   "label": "credible" | "suspicious" | "uncertain",
-  "score": float (0 to 1),
-  "consolidated_reasons": ["reason 1", "reason 2", "..."],
+  "score": float,  // 20 to 100
+
+  "project_verification": [
+    {{
+      "project_name": "name of the project from the CV",
+      "status": "verified" | "unverified" | "ambiguous" | "unverifiable",
+      "matched_repo": "name of the most likely GitHub repo or null",
+      "confidence": float,  // 20 to 100
+      "evidence": [
+        "short evidence sentence 1 referencing CV + GitHub",
+        "short evidence sentence 2"
+      ]
+    }}
+  ],
+
+  "language_alignment": {{
+    "cv_languages_supported": [
+      "language or framework that is clearly supported by GitHub evidence"
+    ],
+    "cv_languages_missing_on_github": [
+      "language or framework claimed in CV/LinkedIn but not supported by GitHub"
+    ],
+    "notes": [
+      "short sentence explaining overall alignment or mismatch between claimed stack and GitHub repos"
+    ]
+  }},
+
+  "red_flags": [
+    "Detailed description of a critical credibility issue with brief evidence",
+    "Another specific red flag"
+  ],
+
+  "yellow_flags": [
+    "Detailed description of a milder concern or uncertainty with brief evidence",
+    "Another specific yellow flag"
+  ],
+
+  "consolidated_reasons": [
+    "1–3 high-level reasons that summarize your overall judgment"
+  ],
+
   "recommendation": "proceed" | "human_review" | "reject",
-  "explanation": "single-line summary, max 200 characters",
-  "suggested_questions": ["question 1", "question 2", "question 3"]
+
+  "explanation": "Short paragraph (2–4 sentences) summarizing the candidate's credibility, key supporting evidence, and overall risk level.",
+
+  "suggested_questions": [
+    "Concrete follow-up question 1 focused on the riskiest project or skill claim",
+    "Concrete follow-up question 2",
+    "Concrete follow-up question 3"
+  ]
 }}
+
+Guidance:
+- Use Stage 1 responses as raw evidence for project–repo matching and tech stack verification.
+- Use Stage 2 rankings to trust the most careful, evidence-based analyses more than weaker ones.
+- RED FLAGS are serious issues that directly undermine trust (e.g., unverifiable flagship projects, strong tech stack mismatch, clear timeline inconsistencies).
+- YELLOW FLAGS are weaker or uncertain issues (e.g., incomplete repos, weak documentation, fork-heavy portfolio without clear original work).
 
 Content to analyze:
 

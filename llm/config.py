@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- API Keys --
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = "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"
 # GEMINI_API_KEY = "AIzaSyCgcBFhzK6VU7oK5cMh9QNZIXGLOxGgToU"
 
 # --- LLM Models ---
