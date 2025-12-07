@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- API Keys --
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = "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"
 # GEMINI_API_KEY = "AIzaSyCgcBFhzK6VU7oK5cMh9QNZIXGLOxGgToU"
 
 # --- LLM Models ---
@@ -39,7 +39,7 @@ OPENROUTER_API_KEY = "sk-or-v1-2eaf0ca03c864df874fb8c59fd534cdf0c6ae1de0ce8179eb
 COUNCIL_MODELS = [
     "tngtech/deepseek-r1t2-chimera:free",
     "nvidia/nemotron-nano-12b-v2-vl:free",
-    "z-ai/glm-4.5-air:free"  # multimodal flavor
+    "tngtech/deepseek-r1t-chimera:free"  # multimodal flavor
 ]
 
 # Chairman model: Gemini 1.5 Pro (reliable synthesis via Google)

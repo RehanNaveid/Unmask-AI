@@ -65,6 +65,8 @@ public class ProcessingService {
             // 2) GitHub data
             Map<String,Object> githubJson = githubService.fetchGithubData(candidate.getGithubUsername());
 
+
+
             // 3) Fact sheet
             Map<String,Object> facts = factSheetService.buildFactSheet(candidate, cvData, linkedinData, githubJson);
 

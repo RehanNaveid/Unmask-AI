@@ -1,4 +1,5 @@
 package com.example.Unmask.controller;
+import com.example.Unmask.dto.CandidateAnalysisDTO;
 import com.example.Unmask.dto.CandidateDTO;
 import com.example.Unmask.service.CandidateService;
 import lombok.RequiredArgsConstructor;
@@ -34,5 +35,18 @@ public class CandidateController {
     public ResponseEntity<CandidateDTO> getCandidate(@PathVariable UUID id) {
         return ResponseEntity.ok(candidateService.getCandidate(id));
     }
+
+    @GetMapping("/{id}/analysis")
+    public ResponseEntity<CandidateAnalysisDTO> getCandidateAnalysis(@PathVariable UUID id) {
+        CandidateAnalysisDTO dto = candidateService.getCandidateAnalysis(id);
+        return ResponseEntity.ok(dto);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCandidate(@PathVariable UUID id) {
+        candidateService.deleteCandidate(id);
+        return ResponseEntity.noContent().build();
+    }
+
 }
 

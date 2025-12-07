@@ -14,9 +14,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -26,10 +24,6 @@ public class GithubService {
     @Value("${github.api-base-url:https://api.github.com}")
     private String githubApiBaseUrl;
 
-    /**
-     * No token used: rely on unauthenticated rate limit (60 req/hour/IP).
-     * Keep this property only if you later want to switch to token.
-     */
     @Value("${github.token:}")
     private String githubToken;
 
@@ -47,7 +41,11 @@ public class GithubService {
         try {
             String cached = redisClient.get(redisKey);
             if (cached != null) {
-                return objectMapper.readValue(cached, new TypeReference<>() {});
+                Map<String, Object> cachedMap =
+                        objectMapper.readValue(cached, new TypeReference<Map<String, Object>>() {});
+                log.info("Redis github top_repos for {}: {}", username, cachedMap.get("top_repos"));
+                return cachedMap;
+//                return objectMapper.readValue(cached, new TypeReference<>() {});
             }
         } catch (Exception e) {
             log.warn("Redis cache read failed", e);
@@ -66,6 +64,7 @@ public class GithubService {
 
                 Map<String, Integer> languageHistogram = buildLanguageHistogram(repos);
                 int repoCount = repos != null ? repos.size() : 0;
+                List<Map<String, Object>> topRepos = buildTopRepos(repos);
 
                 Map<String, Object> result = new HashMap<>();
                 result.put("profile", profile);
@@ -73,8 +72,10 @@ public class GithubService {
                 result.put("events", events);
                 result.put("repo_count", repoCount);
                 result.put("language_histogram", languageHistogram);
+                result.put("top_repos", topRepos);
 
                 redisClient.setex(redisKey, CACHE_TTL_SECONDS, objectMapper.writeValueAsString(result));
+                log.info("DB github top_repos for {}: {}", username, topRepos);
                 return result;
             } catch (Exception e) {
                 log.warn("DB cache deserialization failed", e);
@@ -88,6 +89,7 @@ public class GithubService {
 
         Map<String, Integer> languageHistogram = buildLanguageHistogram(repos);
         int repoCount = repos != null ? repos.size() : 0;
+        List<Map<String, Object>> topRepos = buildTopRepos(repos);
 
         Map<String, Object> combined = new HashMap<>();
         combined.put("profile", profile);
@@ -95,6 +97,11 @@ public class GithubService {
         combined.put("events", events);
         combined.put("repo_count", repoCount);
         combined.put("language_histogram", languageHistogram);
+        combined.put("top_repos", topRepos);
+        log.info("GH for {} -> repos={}, top_repos={}",
+                username,
+                repos == null ? 0 : repos.size(),
+                combined.get("top_repos"));
 
         // Persist cache
         try {
@@ -125,7 +132,6 @@ public class GithubService {
             }
             return resp.getBody();
         } catch (HttpStatusCodeException ex) {
-            // Handle rate limit or 404 gracefully
             if (ex.getStatusCode() == HttpStatus.FORBIDDEN
                     || ex.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
                 log.error("GitHub rate limit reached (no token): {}", ex.getResponseBodyAsString());
@@ -185,5 +191,31 @@ public class GithubService {
             }
         }
         return histogram;
+    }
+
+    /**
+     * Build top 4 repos for UI and council prompt.
+     * Simple heuristic: most recently pushed, keep only key fields.
+     */
+    private List<Map<String, Object>> buildTopRepos(List<Map<String, Object>> repos) {
+        if (repos == null || repos.isEmpty()) return List.of();
+
+        return repos.stream()
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(
+                        (Map<String, Object> r) -> Objects.toString(r.get("pushed_at"), "")
+                ).reversed())
+                .limit(4)
+                .map(r -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("name", r.get("name"));
+                    m.put("full_name", r.get("full_name"));
+                    m.put("html_url", r.get("html_url"));
+                    m.put("description", r.get("description"));
+                    m.put("language", r.get("language"));
+                    m.put("pushed_at", r.get("pushed_at"));
+                    return m;
+                })
+                .toList();
     }
 }

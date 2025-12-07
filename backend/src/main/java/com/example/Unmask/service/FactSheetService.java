@@ -41,6 +41,7 @@ public class FactSheetService {
         gh.put("events", githubJson.getOrDefault("events", List.of()));
         gh.put("repo_count", githubJson.getOrDefault("repo_count", 0));
         gh.put("language_histogram", githubJson.getOrDefault("language_histogram", Map.of()));
+        gh.put("top_repos", githubJson.getOrDefault("top_repos", List.of())); // top 4 repos
         out.put("github", gh);
 
         // 4) META

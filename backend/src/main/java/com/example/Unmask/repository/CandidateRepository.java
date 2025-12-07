@@ -6,4 +6,6 @@ import java.util.UUID;
 
 public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
     Optional<Candidate> findByGithubUsername(String githubUsername);
+    void deleteAllByCandidate(Candidate candidate);
+
 }
