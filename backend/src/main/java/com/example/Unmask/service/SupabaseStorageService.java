@@ -1,4 +1,5 @@
 package com.example.Unmask.service;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,6 +51,17 @@ public class SupabaseStorageService {
         return downloadFile(linkedinBucket, path);
     }
 
+    // NEW: delete methods used by CandidateService
+    public void deleteCv(String path) {
+        deleteFile(cvBucket, path);
+    }
+
+    public void deleteLinkedin(String path) {
+        deleteFile(linkedinBucket, path);
+    }
+
+    // ---------------------------------------------------------------------
+
     private void uploadFile(String bucket, String path, MultipartFile file) {
         String url = supabaseUrl + "/storage/v1/object/" + bucket + "/" + path;
 
@@ -59,7 +71,8 @@ public class SupabaseStorageService {
 
         try {
             HttpEntity<byte[]> entity = new HttpEntity<>(file.getBytes(), headers);
-            ResponseEntity<String> resp = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            ResponseEntity<String> resp =
+                    restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
             if (!resp.getStatusCode().is2xxSuccessful()) {
                 throw new RuntimeException("Supabase upload failed: " + resp.getStatusCode());
             }
@@ -77,7 +90,8 @@ public class SupabaseStorageService {
 
         try {
             HttpEntity<Void> entity = new HttpEntity<>(headers);
-            ResponseEntity<byte[]> resp = restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
+            ResponseEntity<byte[]> resp =
+                    restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
             if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
                 throw new RuntimeException("Supabase download failed: " + resp.getStatusCode());
             }
@@ -87,5 +101,22 @@ public class SupabaseStorageService {
             throw new RuntimeException("Supabase download error: " + e.getMessage());
         }
     }
-}
 
+    private void deleteFile(String bucket, String path) {
+        String url = supabaseUrl + "/storage/v1/object/" + bucket + "/" + path;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(serviceKey);
+
+        try {
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            ResponseEntity<String> resp =
+                    restTemplate.exchange(url, HttpMethod.DELETE, entity, String.class);
+            if (!resp.getStatusCode().is2xxSuccessful()) {
+                log.warn("Supabase delete failed for {}/{}: {}", bucket, path, resp.getStatusCode());
+            }
+        } catch (Exception e) {
+            log.warn("Supabase delete error for {}/{}", bucket, path, e);
+        }
+    }
+}

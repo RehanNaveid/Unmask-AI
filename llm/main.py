@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 import uuid
 import json
-import asyncio
+from fastapi import FastAPI, HTTPException,Request
 
 from . import storage
 from .council import (
@@ -76,10 +76,14 @@ async def root():
 # -----------------------------
 
 @app.post("/api/analyze")
-async def analyze_candidate(request: AnalyzeRequest):
+async def analyze_candidate(request: AnalyzeRequest,http_request: Request):
     """
     Run full candidate analysis (CV, LinkedIn, GitHub) using the 3-stage council pipeline.
     """
+    print("INCOMING AUTH:", repr(http_request.headers.get("authorization")))
+    # or
+    import logging
+    logging.getLogger("uvicorn.error").info("INCOMING AUTH (endpoint): %r", http_request.headers.get("authorization"))
 
     cv = request.cv_json or {}
     li = request.linkedin_json or {}

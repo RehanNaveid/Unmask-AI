@@ -8,4 +8,5 @@ import java.util.UUID;
 @Repository
 public interface CandidateFactsRepository extends JpaRepository<CandidateFacts, UUID> {
     Optional<CandidateFacts> findTopByCandidateIdOrderByVersionDesc(UUID candidateId);
+    void deleteAllByCandidateId(UUID candidateId);
 }

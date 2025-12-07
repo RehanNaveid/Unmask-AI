@@ -42,6 +42,10 @@ public class Candidate {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hr_user_id")
+    private HrUser hrUser;
+
     @PrePersist
     public void prePersist() {
         Instant now = Instant.now();

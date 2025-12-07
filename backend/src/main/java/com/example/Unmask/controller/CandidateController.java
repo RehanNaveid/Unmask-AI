@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -46,6 +47,12 @@ public class CandidateController {
     public ResponseEntity<Void> deleteCandidate(@PathVariable UUID id) {
         candidateService.deleteCandidate(id);
         return ResponseEntity.noContent().build();
+    }
+    @GetMapping
+    public ResponseEntity<List<CandidateDTO>> listCandidates() {
+        // simplest: for now, return all candidates for current HR
+        List<CandidateDTO> list = candidateService.listCandidatesForCurrentHr();
+        return ResponseEntity.ok(list);
     }
 
 }
