@@ -1,54 +1,29 @@
-# """Configuration for the LLM Council."""
-
-# import os
-# from dotenv import load_dotenv
-
-# load_dotenv()
-
-# # OpenRouter API key
-# OPENROUTER_API_KEY = "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"
-
-# COUNCIL_MODELS = [
-#     "tngtech/deepseek-r1t2-chimera:free",
-#     "nvidia/nemotron-nano-12b-v2-vl:free",
-#     "z-ai/glm-4.5-air:free"     # Multimodal variety
-# ]
-# CHAIRMAN_MODEL = "meta-llama/llama-3.3-70b-instruct:free"# Reliable synthesis
-
-# # OpenRouter API endpoint
-# OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-
-# # Data directory for conversation storage
-# DATA_DIR = "data/conversations"
-
-
-"""Configuration for the LLM Council — Tailored Setup."""
-
-import os
+from pathlib import Path
 from dotenv import load_dotenv
+import os
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
 
-# --- API Keys --
-OPENROUTER_API_KEY = "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"
-# GEMINI_API_KEY = "AIzaSyCgcBFhzK6VU7oK5cMh9QNZIXGLOxGgToU"
+# --- API Keys ---
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+if not OPENROUTER_API_KEY:
+    raise ValueError(
+        "❌ ERROR: OPENROUTER_API_KEY is not set. Add it to your .env file."
+    )
 
 # --- LLM Models ---
-
-# Free OpenRouter council models for peer response diversity
 COUNCIL_MODELS = [
+    "mistralai/devstral-2512:free",
     "tngtech/deepseek-r1t2-chimera:free",
-    "nvidia/nemotron-nano-12b-v2-vl:free",
-    "tngtech/deepseek-r1t-chimera:free"  # multimodal flavor
+    "nex-agi/deepseek-v3.1-nex-n1:free"
 ]
 
-# Chairman model: Gemini 1.5 Pro (reliable synthesis via Google)
 CHAIRMAN_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 
 # --- API Endpoints ---
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-# GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
-# --- Data Storage ---
+# --- Storage ---
 DATA_DIR = "data/conversations"
-

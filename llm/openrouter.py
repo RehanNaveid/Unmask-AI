@@ -2,7 +2,21 @@
 
 import httpx
 from typing import List, Dict, Any, Optional
-from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL
+from .config import OPENROUTER_API_URL
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
+
+# --- API Keys ---
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+if not OPENROUTER_API_KEY:
+    raise ValueError(
+        "❌ ERROR: OPENROUTER_API_KEY is not set. Add it to your .env file."
+    )
 
 
 async def query_model(
@@ -77,3 +91,18 @@ async def query_models_parallel(
 
     # Map models to their responses
     return {model: response for model, response in zip(models, responses)}
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        result = await query_model(
+            model="openai/gpt-4o-mini",
+            messages=[
+                {"role": "user", "content": "Say hello in one sentence"}
+            ]
+        )
+        print(result)
+
+    asyncio.run(main())

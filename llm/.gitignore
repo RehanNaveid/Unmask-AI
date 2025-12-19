@@ -1,0 +1,24 @@
+# --------------------
+# Python ignores
+# --------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# Environment files (important!)
+.env
+*.env
+
+# IDE folders
+.vscode/
+.idea/
+*.iml
+
+
