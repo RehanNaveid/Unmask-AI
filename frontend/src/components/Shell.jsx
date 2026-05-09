@@ -1,11 +1,12 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Brain, LogOut, Home } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Phone, ShieldCheck, Users, LogOut } from "lucide-react";
 import { clearSession, getUser } from "../lib/auth";
 import { AnimatedBackground, Button } from "./UnmaskUI";
 
 export default function Shell({ children }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = getUser();
 
   function logout() {
@@ -14,56 +15,55 @@ export default function Shell({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-cyan-50 relative overflow-hidden">
+    <div
+      className="min-h-screen relative overflow-hidden"
+      style={{ background: "var(--u-bg)", color: "var(--u-text)" }}
+    >
       <AnimatedBackground />
 
-      <header className="bg-slate-900/60 backdrop-blur-2xl border-b border-cyan-500/20 sticky top-0 z-50">
-        <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link to="/candidates" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-                <Brain className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-cyan-100 tracking-tight">
-                  UNMASK
-                </div>
-                <div className="text-xs text-cyan-400/60">
-                  AI Hiring Intelligence
-                </div>
-              </div>
-            </Link>
-
-            <nav className="flex items-center gap-3 text-sm">
-              <Link
-                to="/candidates"
-                aria-label="Home"
-                className="inline-flex items-center justify-center w-8 h-8 rounded-xl text-cyan-100/80 hover:text-cyan-100 hover:bg-slate-800/60 transition-colors"
-              >
-                <Home className="w-5 h-5" />
-              </Link>
-            </nav>
+      <div className="u-app-layout relative z-10">
+        <aside className="u-sidebar">
+          <div className="u-sidebar-workspace">
+            <div className="u-sidebar-muted">Workspace</div>
+            <div className="u-sidebar-who">
+              {user?.fullName || user?.email || "HR One"} · Recruiter
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-cyan-100/70">
-              {user?.fullName || user?.email || "HR"}
-            </span>
-            <Button
-              variant="ghost"
-              icon={LogOut}
-              onClick={logout}
-              className="text-xs px-3 py-2"
-            >
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
+          <div className="u-sidebar-section">Recruiting</div>
 
-      <main className="max-w-[1400px] mx-auto px-6 py-8 relative z-10">
-        {children}
-      </main>
+          <Link
+            to="/candidates"
+            className={`u-sidebar-item ${
+              location.pathname === "/candidates" ? "active" : ""
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Candidates
+          </Link>
+
+          <div className="u-sidebar-item" aria-disabled="true" style={{ opacity: 0.6, cursor: "default" }}>
+            <ShieldCheck className="w-4 h-4" />
+            AI Analysis
+          </div>
+
+          <div className="u-sidebar-item" aria-disabled="true" style={{ opacity: 0.6, cursor: "default" }}>
+            <Phone className="w-4 h-4" />
+            Reference Calls
+          </div>
+
+          <div className="u-sidebar-section" style={{ marginTop: "auto" }}>
+            Account
+          </div>
+
+          <div className="u-sidebar-item" onClick={logout} role="button" tabIndex={0}>
+            <LogOut className="w-4 h-4" />
+            Logout
+          </div>
+        </aside>
+
+        <main className="u-main">{children}</main>
+      </div>
     </div>
   );
 }

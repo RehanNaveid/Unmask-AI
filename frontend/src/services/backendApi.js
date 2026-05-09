@@ -1,10 +1,25 @@
-﻿import env from "../config/env";
+import env from "../config/env";
 import { request } from "../lib/http";
 
 export function login(payload) {
   return request(env.backendBaseUrl, "/api/auth/login", {
     method: "POST",
     body: payload,
+  });
+}
+
+export function googleLogin(credentialJwt) {
+  return request(env.backendBaseUrl, "/api/auth/google", {
+    method: "POST",
+    body: { idToken: credentialJwt },
+  });
+}
+
+export function completeProfile(payload) {
+  return request(env.backendBaseUrl, "/api/auth/complete-profile", {
+    method: "POST",
+    body: payload,
+    auth: true,
   });
 }
 

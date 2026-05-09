@@ -16,12 +16,11 @@ public class HrUser {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
     @Column(unique = true, nullable = false)
-    private String email;        // used as username for login
+    private String email; // used as username for login
 
-    @Column(nullable = false)
-    private String password;     // BCrypt-hashed
+    @Column(nullable = true)
+    private String password; // BCrypt-hashed; null for Google OAuth users
 
     @Column(nullable = false)
     private String fullName;
@@ -30,5 +29,13 @@ public class HrUser {
     private String position;
 
     @Column(nullable = false)
-    private String role;         // always "ROLE_HR"
+    private String role; // always "ROLE_HR"
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'LOCAL'")
+    private String provider = "LOCAL";
+
+    @Builder.Default
+    @Column(name = "onboarding_completed", nullable = false, columnDefinition = "boolean default false")
+    private boolean onboardingCompleted = false;
 }

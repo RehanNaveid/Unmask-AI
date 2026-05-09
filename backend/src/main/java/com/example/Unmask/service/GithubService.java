@@ -74,7 +74,13 @@ public class GithubService {
                 result.put("language_histogram", languageHistogram);
                 result.put("top_repos", topRepos);
 
-                redisClient.setex(redisKey, CACHE_TTL_SECONDS, objectMapper.writeValueAsString(result));
+                // redisClient.setex(redisKey, CACHE_TTL_SECONDS, objectMapper.writeValueAsString(result));
+
+                // AFTER — respect remaining TTL
+                long remainingSeconds = Instant.now().until(cache.getExpiresAt(), ChronoUnit.SECONDS);
+                if (remainingSeconds > 60) {  // only cache if more than 1 minute remains
+                    redisClient.setex(redisKey, (int) remainingSeconds, objectMapper.writeValueAsString(result));
+                }
                 log.info("DB github top_repos for {}: {}", username, topRepos);
                 return result;
             } catch (Exception e) {

@@ -1,18 +1,35 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Brain, Mail, Github, RefreshCw, Plus, Trash2 } from "lucide-react";
+import {
+  Mail,
+  Github,
+  RefreshCw,
+  Plus,
+  Trash2,
+  Search,
+} from "lucide-react";
 import Shell from "../components/Shell";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import ErrorState from "../components/ErrorState";
 import { listCandidates, deleteCandidate } from "../services/backendApi";
-import { GlassCard, Button } from "../components/UnmaskUI";
+import { Button } from "../components/UnmaskUI";
 
 export default function CandidatesPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((c) => {
+      const hay = `${c.name || ""} ${c.email || ""} ${c.githubUsername || ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [items, query]);
 
   async function load() {
     setLoading(true);
@@ -48,36 +65,38 @@ export default function CandidatesPage() {
 
   return (
     <Shell>
-      <section className="mb-10">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <Brain className="w-8 h-8 text-cyan-400" />
-              <h2 className="text-3xl md:text-4xl font-bold text-cyan-50">
-                Candidates
-              </h2>
-            </div>
-            <p className="text-cyan-100/60 text-sm md:text-base">
-              AI-powered candidate verification and analysis
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              icon={RefreshCw}
-              onClick={load}
-              disabled={loading}
-            >
-              Refresh
-            </Button>
-            <Link to="/candidates/new">
-              <Button variant="primary" icon={Plus}>
-                Add Candidate
-              </Button>
-            </Link>
+      <div className="u-page-header">
+        <div>
+          <div className="u-page-title">Candidates</div>
+          <div className="u-page-sub">
+            AI-powered candidate verification and analysis
           </div>
         </div>
-      </section>
+        <div className="u-header-actions">
+          <button className="u-action-btn" onClick={load} disabled={loading}>
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
+          <Link to="/candidates/new" className="u-action-btn primary">
+            <Plus className="w-4 h-4" /> Add Candidate
+          </Link>
+        </div>
+      </div>
+
+      <div className="mb-6 flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search
+            className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ color: "var(--u-text3)" }}
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search candidates…"
+            className="u-input-field"
+            style={{ paddingLeft: 36 }}
+          />
+        </div>
+      </div>
 
       {loading ? <LoadingState text="Loading candidates..." /> : null}
       {!loading && error ? (
@@ -87,15 +106,18 @@ export default function CandidatesPage() {
       ) : null}
 
       {!loading && !error && (
-        <div className="space-y-4">
-          {items.length === 0 ? (
-            <GlassCard>
-              <p className="text-cyan-100/60">
-                No candidates yet. Start by adding a new candidate.
-              </p>
-            </GlassCard>
+        <div className="u-candidates-list">
+          {filtered.length === 0 ? (
+            <div className="u-candidate-card" style={{ cursor: "default" }}>
+              <div className="u-candidate-info">
+                <div className="u-candidate-name">No results</div>
+                <div className="u-candidate-meta">
+                  <span>Try a different search query.</span>
+                </div>
+              </div>
+            </div>
           ) : (
-            items.map((c) => {
+            filtered.map((c) => {
               const initials =
                 (c.name || "")
                   .split(" ")
@@ -110,47 +132,42 @@ export default function CandidatesPage() {
                   key={c.id}
                   className="block"
                 >
-                  <GlassCard className="hover:border-cyan-400/40 transition-colors">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                      <div className="flex items-center gap-6">
-                        <div className="relative">
-                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-                            <span className="text-white text-xl font-bold">
-                              {initials}
-                            </span>
-                          </div>
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-cyan-50 mb-1">
-                            {c.name}
-                          </h3>
-                          <div className="flex flex-wrap items-center gap-3 text-sm text-cyan-100/70">
-                            <span className="flex items-center gap-1.5">
-                              <Mail className="w-3.5 h-3.5" />
-                              {c.email}
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Github className="w-3.5 h-3.5" />
-                              @{c.githubUsername}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <StatusBadge status={c.status} />
-                        <Button
-                          variant="secondary"
-                          icon={Trash2}
-                          loading={isDeleting}
-                          disabled={isDeleting}
-                          className="text-xs border-red-500/40 text-red-300 hover:bg-red-500/10"
-                          onClick={(event) => handleDelete(event, c.id)}
-                        >
-                          Delete
-                        </Button>
+                  <div className="u-candidate-card">
+                    <div
+                      className="u-candidate-avatar"
+                      style={{
+                        background: "rgba(0,212,255,0.12)",
+                        color: "var(--u-accent)",
+                      }}
+                    >
+                      {initials}
+                    </div>
+
+                    <div className="u-candidate-info">
+                      <div className="u-candidate-name">{c.name}</div>
+                      <div className="u-candidate-meta">
+                        <span>
+                          <Mail className="w-3.5 h-3.5" /> {c.email}
+                        </span>
+                        <span>
+                          <Github className="w-3.5 h-3.5" /> @{c.githubUsername}
+                        </span>
                       </div>
                     </div>
-                  </GlassCard>
+
+                    <div className="u-candidate-right">
+                      <StatusBadge status={c.status} />
+                      <button
+                        className="u-action-btn danger"
+                        onClick={(event) => handleDelete(event, c.id)}
+                        disabled={isDeleting}
+                        aria-label="Delete candidate"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        {isDeleting ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  </div>
                 </Link>
               );
             })

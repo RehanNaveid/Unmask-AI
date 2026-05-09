@@ -5,11 +5,13 @@ LLM Council Pipeline for Candidate Credibility Analysis
 - Stage 3: Chairman (Gemini / Llama 70B) produces strict JSON summary
 """
 
+import asyncio
 from typing import List, Dict, Any, Tuple
 import re
 import json
 from .openrouter import query_models_parallel, query_model
-from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
+from .utils import normalize_json   
+from .config import COUNCIL_MODELS, CHAIRMAN_MODEL, MAX_RETRIES
 
 
 #####################################################################
@@ -33,7 +35,7 @@ async def stage1_collect_responses(prompt: str) -> List[Dict[str, Any]]:
             print(f"[STAGE 1] Model {model}: NO RESPONSE (None)")
             continue
 
-        raw = response.get("content", "").strip()
+        raw = (response.get("content") or "").strip()
         print(f"[STAGE 1] Model {model}: Response length = {len(raw)}")
 
         if not raw:
@@ -161,7 +163,8 @@ async def stage2_collect_rankings(
             print(f"[STAGE 2] Model {model}: NO RANKING RESPONSE")
             continue
 
-        text = response.get("content", "")
+        # text = response.get("content", "")
+        text = response.get("content") or ""
         print(f"[STAGE 2] Model {model}: Ranking response length = {len(text)}")
         parsed = parse_ranking_from_text(text)
 
@@ -292,32 +295,40 @@ STAGE 1 RESPONSES:
 STAGE 2 RANKINGS:
 {s2_summary}
 """
-
     print(f"[STAGE 3] Chairman prompt length: {len(chairman_prompt)} chars")
 
-    response = await query_model(
-        CHAIRMAN_MODEL, [{"role": "user", "content": chairman_prompt}]
-    )
+    # ── Retry loop (replaces the old single try/except) ──────────────────
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        if attempt > 0:
+            wait = 2 ** (attempt - 1)   # attempt 1 → 1s, attempt 2 → 2s
+            print(f"[STAGE 3] Retry {attempt}/{MAX_RETRIES - 1}, waiting {wait}s...")
+            await asyncio.sleep(wait)
 
-    if not response or "content" not in response:
-        print("[STAGE 3] ERROR: Chairman returned no content")
-        return {"error": "Chairman failed"}
+        response = await query_model(
+            CHAIRMAN_MODEL, [{"role": "user", "content": chairman_prompt}]
+        )
 
-    raw = response["content"]
-    print(f"[STAGE 3] Chairman raw response length: {len(raw)}")
+        raw = ""
+        if response:
+            raw = (response.get("content") or "").strip()
 
-    try:
-        parsed = json.loads(raw)
-        print("[STAGE 3] Chairman JSON parsed successfully")
-        return parsed
-    except Exception as e:
-        print(f"[STAGE 3] ERROR: Chairman returned malformed JSON: {e}")
-        return {
-            "error": "Chairman returned malformed JSON",
-            "raw": raw,
-        }
+        if not raw:
+            last_error = "empty response from chairman"
+            print(f"[STAGE 3] Attempt {attempt + 1}: {last_error}")
+            continue
 
+        parsed = normalize_json(raw)
 
+        if parsed and isinstance(parsed, dict) and "label" in parsed:
+            print(f"[STAGE 3] Success on attempt {attempt + 1}")
+            return parsed
+
+        last_error = f"malformed JSON — first 300 chars: {raw[:300]}"
+        print(f"[STAGE 3] Attempt {attempt + 1} failed — {last_error}")
+
+    print(f"[STAGE 3] All {MAX_RETRIES} attempts exhausted")
+    return {"error": "Chairman failed after retries", "detail": last_error}
 #####################################################################
 # MAIN ORCHESTRATOR
 #####################################################################

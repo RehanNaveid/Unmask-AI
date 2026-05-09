@@ -15,13 +15,14 @@ if not OPENROUTER_API_KEY:
 
 # --- LLM Models ---
 COUNCIL_MODELS = [
-    "stepfun/step-3.5-flash:free",
-    "arcee-ai/trinity-mini:free",
-    "nvidia/nemotron-nano-12b-v2-vl:free"
+    "openai/gpt-oss-120b:free",
+    "openrouter/free",
+    "openai/gpt-oss-20b:free"
 ]
 
-CHAIRMAN_MODEL = "nvidia/nemotron-3-nano-30b-a3b:free"
+CHAIRMAN_MODEL = "openai/gpt-oss-120b:free"
 
+MAX_RETRIES = 3
 # --- API Endpoints ---
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 

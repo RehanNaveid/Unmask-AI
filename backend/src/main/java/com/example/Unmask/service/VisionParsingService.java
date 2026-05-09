@@ -106,7 +106,7 @@ NO extra fields. NO hallucinations.
         );
 
         Map<String, Object> body = new HashMap<>();
-        body.put("model", "meta-llama/llama-4-maverick-17b-128e-instruct");
+        body.put("model", "meta-llama/llama-4-scout-17b-16e-instruct");
         body.put("messages", List.of(
                 Map.of("role", "system", "content", system),
                 Map.of("role", "user", "content", contentList)

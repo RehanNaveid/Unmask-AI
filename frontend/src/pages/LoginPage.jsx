@@ -1,14 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Brain, Zap } from "lucide-react";
-import { login } from "../services/backendApi";
-import { setSession } from "../lib/auth";
-import {
-  AnimatedBackground,
-  GlassCard,
-  Button,
-} from "../components/UnmaskUI";
+import { LogIn } from "lucide-react";
+import env from "../config/env";
+import { googleLogin, login } from "../services/backendApi";
+import { getUser, needsProfileCompletion, setAuthSession, setSession } from "../lib/auth";
+import { AnimatedBackground } from "../components/UnmaskUI";
 
 export default function LoginPage({ onSuccess }) {
   const navigate = useNavigate();
@@ -16,6 +12,12 @@ export default function LoginPage({ onSuccess }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [googleReady, setGoogleReady] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleBtnRef = useRef(null);
+
+  const googleClientId = env.googleClientId;
+  const canUseGoogle = useMemo(() => Boolean(googleClientId), [googleClientId]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -27,9 +29,13 @@ export default function LoginPage({ onSuccess }) {
         email: data.email,
         fullName: data.fullName,
         roles: data.roles,
+        provider: data.provider,
+        onboardingCompleted: data.onboardingCompleted,
+        company: data.company,
+        position: data.position,
       });
       onSuccess();
-      navigate("/candidates");
+      navigate(needsProfileCompletion(getUser()) ? "/complete-profile" : "/candidates");
     } catch (err) {
       setError(err.message || "Login failed");
     } finally {
@@ -37,102 +43,185 @@ export default function LoginPage({ onSuccess }) {
     }
   }
 
+  useEffect(() => {
+    if (!canUseGoogle) return;
+
+    let cancelled = false;
+    let timer = null;
+
+    function initGoogle() {
+      if (cancelled) return;
+      const google = window.google;
+      if (!google?.accounts?.id) return false;
+
+      google.accounts.id.initialize({
+        client_id: googleClientId,
+        ux_mode: "popup",
+        callback: async (response) => {
+          setGoogleLoading(true);
+          setError("");
+          try {
+            const data = await googleLogin(response.credential);
+            setAuthSession(data);
+            onSuccess();
+            navigate(needsProfileCompletion(getUser()) ? "/complete-profile" : "/candidates");
+          } catch (err) {
+            setError(err.message || "Google login failed");
+          } finally {
+            setGoogleLoading(false);
+          }
+        },
+      });
+
+      if (googleBtnRef.current) {
+        googleBtnRef.current.innerHTML = "";
+        google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "pill",
+          width: 340,
+        });
+      }
+      setGoogleReady(true);
+      return true;
+    }
+
+    function waitForGoogle(maxAttempts = 40) {
+      let attempts = 0;
+      timer = window.setInterval(() => {
+        attempts += 1;
+        const ok = initGoogle();
+        if (ok || attempts >= maxAttempts) {
+          window.clearInterval(timer);
+          timer = null;
+          if (!ok && !cancelled) {
+            setError("Google SDK failed to initialize");
+          }
+        }
+      }, 100);
+    }
+
+    // Load GIS SDK once (robust against existing-but-not-ready script)
+    const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (existing) {
+      const ok = initGoogle();
+      if (!ok) {
+        waitForGoogle();
+      }
+      return () => {
+        cancelled = true;
+        if (timer) window.clearInterval(timer);
+      };
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      const ok = initGoogle();
+      if (!ok) {
+        waitForGoogle();
+      }
+    };
+    script.onerror = () => !cancelled && setError("Google SDK failed to load");
+    document.head.appendChild(script);
+
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [canUseGoogle, googleClientId, navigate, onSuccess]);
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950 text-cyan-50">
+    <div className="u-auth-wrap">
       <AnimatedBackground />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="w-full max-w-md relative z-10"
-      >
-        <div className="text-center mb-8">
-          <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-            className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-2xl shadow-cyan-500/50"
-          >
-            <Brain className="w-10 h-10 text-white" />
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400 mb-3 tracking-tight"
-          >
-            UNMASK
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="text-cyan-100/60 text-sm mb-2"
-          >
-            AI-Powered Hiring Intelligence Platform
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-xs text-cyan-300 backdrop-blur-sm"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            Use your HR account credentials
-          </motion.div>
+      <div className="u-auth-card relative z-10">
+        <div className="u-auth-brand">
+          <div className="u-auth-logo">U</div>
+          <div>
+            <div className="u-auth-name">UNMASK</div>
+            <div className="u-auth-subname">AI Hiring Intelligence</div>
+          </div>
         </div>
 
-        <GlassCard glow>
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-sm font-medium text-cyan-100/80 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
-                className="w-full px-4 py-3.5 bg-slate-800/50 backdrop-blur-sm border border-cyan-500/30 rounded-2xl text-cyan-50 placeholder:text-cyan-100/30 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400/50 transition-all"
-                required
-              />
-            </div>
+        <div className="u-auth-title">Sign in</div>
+        <div className="u-auth-sub">
+          Use your HR account credentials to access the candidates workspace.
+        </div>
 
-            <div>
-              <label className="block text-sm font-medium text-cyan-100/80 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-3.5 bg-slate-800/50 backdrop-blur-sm border border-cyan-500/30 rounded-2xl text-cyan-50 placeholder:text-cyan-100/30 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400/50 transition-all"
-                required
-              />
-            </div>
+        <form onSubmit={handleSubmit}>
+          <div className="u-input-group">
+            <div className="u-input-label">Email Address</div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              className="u-input-field"
+              required
+            />
+          </div>
 
-            {error ? (
-              <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/40 rounded-2xl px-4 py-3">
-                {error}
-              </p>
-            ) : null}
+          <div className="u-input-group">
+            <div className="u-input-label">Password</div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="u-input-field"
+              required
+            />
+          </div>
 
-            <Button
-              type="submit"
-              variant="primary"
-              loading={loading}
-              className="w-full text-base py-4"
+          {error ? <div className="u-auth-error">{error}</div> : null}
+
+          <button className="u-auth-submit" type="submit" disabled={loading}>
+            <LogIn className="w-4 h-4" />
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
+
+        {canUseGoogle ? (
+          <div style={{ marginTop: 14 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                margin: "12px 0",
+                color: "var(--u-text3)",
+                fontSize: 12,
+              }}
             >
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-          </form>
-        </GlassCard>
-      </motion.div>
+              <div style={{ height: 1, background: "var(--u-border)", flex: 1 }} />
+              <div>or</div>
+              <div style={{ height: 1, background: "var(--u-border)", flex: 1 }} />
+            </div>
+            <div
+              ref={googleBtnRef}
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                opacity: googleLoading ? 0.6 : 1,
+                pointerEvents: googleLoading ? "none" : "auto",
+              }}
+            />
+            {!googleReady ? (
+              <div style={{ marginTop: 8, fontSize: 12, color: "var(--u-text3)" }}>
+                Loading Google sign-in…
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div style={{ marginTop: 12, fontSize: 12, color: "var(--u-text3)" }}>
+            Google sign-in is unavailable because `VITE_GOOGLE_CLIENT_ID` is not set.
+          </div>
+        )}
+      </div>
     </div>
   );
 }

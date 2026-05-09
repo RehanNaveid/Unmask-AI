@@ -9,13 +9,20 @@ import {
 export function AnimatedBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950" />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,58,237,0.18) 0%, transparent 70%), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(0,212,255,0.10) 0%, transparent 60%), var(--u-bg)",
+        }}
+      />
       <div className="absolute inset-0 opacity-20">
         {[...Array(30)].map((_, i) => (
           <motion.div
             // eslint-disable-next-line react/no-array-index-key
             key={i}
-            className="absolute w-1 h-1 bg-cyan-400 rounded-full"
+            className="absolute w-1 h-1 rounded-full"
+            style={{ background: "var(--u-accent)" }}
             initial={{
               x:
                 Math.random() *
@@ -41,7 +48,14 @@ export function AnimatedBackground() {
           />
         ))}
       </div>
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:100px_100px]" />
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px)",
+          backgroundSize: "100px 100px",
+        }}
+      />
     </div>
   );
 }
@@ -57,14 +71,26 @@ export function GlassCard({
       whileHover={onClick ? { scale: 1.01, y: -2 } : {}}
       transition={{ duration: 0.2 }}
       onClick={onClick}
-      className={`relative bg-slate-900/40 backdrop-blur-xl border border-cyan-500/20 rounded-3xl p-6 ${
-        onClick
-          ? "cursor-pointer hover:border-cyan-400/40 hover:bg-slate-900/60"
-          : ""
-      } ${glow ? "shadow-[0_0_60px_rgba(6,182,212,0.15)]" : "shadow-xl shadow-black/20"} ${className}`}
+      className={`relative rounded-3xl p-6 ${
+        onClick ? "cursor-pointer" : ""
+      } ${className}`}
+      style={{
+        background: "var(--u-surface)",
+        border: "1px solid var(--u-border)",
+        backdropFilter: "blur(16px)",
+        boxShadow: glow
+          ? "0 0 60px rgba(0,212,255,0.10)"
+          : "0 10px 40px rgba(0,0,0,0.25)",
+      }}
     >
       {glow && (
-        <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-cyan-500/5 to-blue-500/5 blur-2xl -z-10" />
+        <div
+          className="absolute inset-0 rounded-3xl blur-2xl -z-10"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(124,58,237,0.10), rgba(0,212,255,0.10))",
+          }}
+        />
       )}
       {children}
     </motion.div>
@@ -73,11 +99,11 @@ export function GlassCard({
 
 const BUTTON_STYLES = {
   primary:
-    "bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-400 hover:to-blue-400 shadow-lg shadow-cyan-500/30",
+    "",
   secondary:
-    "bg-slate-800/80 backdrop-blur-xl border border-cyan-500/30 text-cyan-100 hover:bg-slate-700/80 hover:border-cyan-400/40",
+    "",
   ghost:
-    "text-cyan-100/70 hover:text-cyan-100 hover:bg-slate-800/50",
+    "",
 };
 
 export function Button({
@@ -97,9 +123,30 @@ export function Button({
       whileTap={{ scale: disabled || loading ? 1 : 0.98 }}
       onClick={onClick}
       disabled={loading || disabled}
-      className={`px-5 py-3 rounded-2xl font-medium text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-        BUTTON_STYLES[variant] || BUTTON_STYLES.primary
-      } ${className}`}
+      className={`px-5 py-3 rounded-2xl font-medium text-sm transition-all flex items-center justify-center gap-2 ${className}`}
+      style={{
+        opacity: loading || disabled ? 0.6 : 1,
+        cursor: loading || disabled ? "not-allowed" : "pointer",
+        borderRadius: 12,
+        border:
+          variant === "ghost"
+            ? "1px solid transparent"
+            : variant === "secondary"
+            ? "1px solid var(--u-border2)"
+            : "1px solid var(--u-accent)",
+        background:
+          variant === "ghost"
+            ? "transparent"
+            : variant === "secondary"
+            ? "var(--u-surface)"
+            : "var(--u-accent)",
+        color:
+          variant === "primary"
+            ? "#000"
+            : variant === "ghost"
+            ? "var(--u-text2)"
+            : "var(--u-text)",
+      }}
     >
       {loading && <Loader2 className="w-4 h-4 animate-spin" />}
       {!loading && Icon && <Icon className="w-4 h-4" />}
@@ -109,19 +156,45 @@ export function Button({
 }
 
 const BADGE_STYLES = {
-  success: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-  warning: "bg-amber-500/20 text-amber-300 border-amber-500/40",
-  default: "bg-slate-500/20 text-slate-300 border-slate-500/40",
-  danger: "bg-red-500/20 text-red-300 border-red-500/40",
-  info: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
+  success: "",
+  warning: "",
+  default: "",
+  danger: "",
+  info: "",
 };
 
 export function Badge({ children, variant = "default", icon: Icon }) {
+  const styleMap = {
+    success: {
+      background: "rgba(6,255,165,0.10)",
+      color: "var(--u-accent3)",
+      border: "1px solid rgba(6,255,165,0.25)",
+    },
+    warning: {
+      background: "rgba(251,191,36,0.10)",
+      color: "var(--u-warn)",
+      border: "1px solid rgba(251,191,36,0.25)",
+    },
+    danger: {
+      background: "rgba(255,77,109,0.12)",
+      color: "var(--u-danger)",
+      border: "1px solid rgba(255,77,109,0.25)",
+    },
+    info: {
+      background: "rgba(0,212,255,0.10)",
+      color: "var(--u-accent)",
+      border: "1px solid rgba(0,212,255,0.25)",
+    },
+    default: {
+      background: "rgba(255,255,255,0.06)",
+      color: "var(--u-text2)",
+      border: "1px solid var(--u-border)",
+    },
+  };
   return (
     <span
-      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border backdrop-blur-sm flex items-center gap-1.5 ${
-        BADGE_STYLES[variant] || BADGE_STYLES.default
-      }`}
+      className="px-3 py-1.5 rounded-xl text-xs font-semibold backdrop-blur-sm flex items-center gap-1.5"
+      style={styleMap[variant] || styleMap.default}
     >
       {Icon && <Icon className="w-3.5 h-3.5" />}
       {children}
@@ -243,13 +316,7 @@ export function FileUpload({
             : "border-cyan-500/30 bg-slate-800/30 hover:border-cyan-400/50"
         }`}
       >
-        <input
-          type="file"
-          accept={accept}
-          onChange={handleChange}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        />
-        <div className="text-center">
+        <div className="text-center pointer-events-none">
           {file ? (
             <>
               <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
@@ -272,6 +339,12 @@ export function FileUpload({
             </>
           )}
         </div>
+        <input
+          type="file"
+          accept={accept}
+          onChange={handleChange}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+        />
       </div>
     </div>
   );

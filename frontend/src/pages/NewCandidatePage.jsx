@@ -1,9 +1,18 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Github, ArrowLeft, FileText, Linkedin } from "lucide-react";
+import {
+  Plus,
+  Github,
+  ArrowLeft,
+  FileText,
+  Linkedin,
+  Check,
+  Sparkles,
+} from "lucide-react";
 import Shell from "../components/Shell";
 import { createCandidate } from "../services/backendApi";
-import { GlassCard, Button, FileUpload } from "../components/UnmaskUI";
+import { Button } from "../components/UnmaskUI";
+import UploadZone from "../components/UploadZone";
 
 export default function NewCandidatePage() {
   const navigate = useNavigate();
@@ -44,192 +53,167 @@ export default function NewCandidatePage() {
 
   return (
     <Shell>
-      <div className="max-w-[900px] mx-auto">
-        <div className="mb-8">
-          <Button
-            onClick={() => navigate("/candidates")}
-            variant="ghost"
-            icon={ArrowLeft}
-            className="mb-6"
-          >
-            Back to Candidates
-          </Button>
+      <div className="u-add-layout">
+        <button
+          className="u-action-btn"
+          type="button"
+          onClick={() => navigate("/candidates")}
+          style={{ marginBottom: "1.5rem" }}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Candidates
+        </button>
 
-          <div className="flex items-center gap-3 mb-4">
-            <Plus className="w-8 h-8 text-cyan-400" />
-            <h2 className="text-3xl md:text-4xl font-bold text-cyan-50">
-              Add New Candidate
-            </h2>
-          </div>
-          <p className="text-cyan-100/60 text-sm md:text-base">
-            Upload candidate information for AI analysis.
-          </p>
+        <div className="u-page-title" style={{ marginBottom: "0.5rem" }}>
+          <Plus
+            className="w-5 h-5"
+            style={{ color: "var(--u-accent)", verticalAlign: "-2px" }}
+          />{" "}
+          Add New Candidate
+        </div>
+        <div className="u-page-sub" style={{ marginBottom: "2rem" }}>
+          Upload candidate information for AI analysis
         </div>
 
-        <div className="flex items-center gap-4 mb-10">
-          <div
-            className={`flex items-center gap-3 px-6 py-3 rounded-2xl ${
-              step >= 1
-                ? "bg-cyan-500/20 border border-cyan-400/40"
-                : "bg-slate-800/30 border border-slate-700/30"
-            }`}
-          >
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                step >= 1
-                  ? "bg-cyan-500 text-white"
-                  : "bg-slate-700 text-slate-400"
-              }`}
-            >
-              1
+        <div className="u-step-header">
+          <div className="u-step-item">
+            <div className={`u-step-num ${step > 1 ? "done" : "active"}`}>
+              {step > 1 ? <Check className="w-4 h-4" /> : 1}
             </div>
-            <span
-              className={`font-medium ${
-                step >= 1 ? "text-cyan-100" : "text-slate-400"
-              }`}
-            >
+            <div className={`u-step-label ${step >= 1 ? "active" : ""}`}>
               Basic Info
-            </span>
-          </div>
-          <div
-            className={`h-0.5 flex-1 ${
-              step >= 2 ? "bg-cyan-500" : "bg-slate-700"
-            }`}
-          />
-          <div
-            className={`flex items-center gap-3 px-6 py-3 rounded-2xl ${
-              step >= 2
-                ? "bg-cyan-500/20 border border-cyan-400/40"
-                : "bg-slate-800/30 border border-slate-700/30"
-            }`}
-          >
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                step >= 2
-                  ? "bg-cyan-500 text-white"
-                  : "bg-slate-700 text-slate-400"
-              }`}
-            >
-              2
             </div>
-            <span
-              className={`font-medium ${
-                step >= 2 ? "text-cyan-100" : "text-slate-400"
-              }`}
-            >
+          </div>
+          <div className="u-step-connector" />
+          <div className="u-step-item">
+            <div className={`u-step-num ${step >= 2 ? "active" : ""}`}>2</div>
+            <div className={`u-step-label ${step >= 2 ? "active" : ""}`}>
               Upload Files
-            </span>
+            </div>
           </div>
         </div>
 
-        <GlassCard glow>
+        <div className="u-form-section">
           {step === 1 ? (
-            <div className="space-y-6">
-              <h3 className="text-2xl font-bold text-cyan-50 mb-2">
-                Candidate Information
-              </h3>
+            <>
+              <div className="u-form-section-title">Candidate Information</div>
 
-              <div>
-                <label className="block text-sm font-medium text-cyan-100/90 mb-2">
-                  Full Name
-                </label>
+              <div className="u-input-group">
+                <div className="u-input-label">Full Name</div>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Doe"
-                  className="w-full px-4 py-3.5 bg-slate-800/50 backdrop-blur-sm border border-cyan-500/30 rounded-2xl text-cyan-50 placeholder:text-cyan-100/30 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400/50 transition-all"
+                  className="u-input-field"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-cyan-100/90 mb-2">
-                  Email Address
-                </label>
+              <div className="u-input-group">
+                <div className="u-input-label">Email Address</div>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="john@example.com"
-                  className="w-full px-4 py-3.5 bg-slate-800/50 backdrop-blur-sm border border-cyan-500/30 rounded-2xl text-cyan-50 placeholder:text-cyan-100/30 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400/50 transition-all"
+                  className="u-input-field"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-cyan-100/90 mb-2">
-                  GitHub Username
-                </label>
-                <div className="relative">
-                  <Github className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400/60" />
+              <div className="u-input-group">
+                <div className="u-input-label">GitHub Username</div>
+                <div style={{ position: "relative" }}>
+                  <Github
+                    className="w-4 h-4"
+                    style={{
+                      position: "absolute",
+                      left: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "var(--u-text3)",
+                    }}
+                  />
                   <input
                     value={githubUsername}
                     onChange={(e) => setGithubUsername(e.target.value)}
                     placeholder="johndoe"
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 backdrop-blur-sm border border-cyan-500/30 rounded-2xl text-cyan-50 placeholder:text-cyan-100/30 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400/50 transition-all"
+                    className="u-input-field"
+                    style={{ paddingLeft: 36 }}
                     required
                   />
                 </div>
               </div>
 
-              <Button
-                onClick={next}
-                variant="primary"
-                disabled={!name || !email || !githubUsername}
-                className="w-full mt-4"
-              >
-                Continue to Upload Files
-              </Button>
-            </div>
+              <div className="u-form-actions">
+                <button
+                  className="u-btn-form primary"
+                  type="button"
+                  onClick={next}
+                  disabled={!name || !email || !githubUsername}
+                >
+                  Continue to Upload Files
+                </button>
+              </div>
+            </>
           ) : (
-            <div className="space-y-6">
-              <h3 className="text-2xl font-bold text-cyan-50 mb-2">
-                Upload Documents
-              </h3>
+            <>
+              <div className="u-form-section-title">Upload Documents</div>
 
-              <FileUpload
-                label="Resume / CV (Required)"
-                accept=".pdf,.doc,.docx"
-                file={cvFile}
-                setFile={setCvFile}
-                icon={FileText}
-              />
+              <div className="u-input-group">
+                <div className="u-input-label">
+                  Resume / CV <span style={{ color: "var(--u-danger)" }}>*</span>
+                </div>
+                <UploadZone
+                  accept=".pdf,.doc,.docx"
+                  file={cvFile}
+                  onFile={setCvFile}
+                  icon={<FileText className="w-8 h-8" />}
+                  subtext=".pdf, .doc, .docx"
+                />
+              </div>
 
-              <FileUpload
-                label="LinkedIn PDF (Optional)"
-                accept=".pdf"
-                file={linkedinFile}
-                setFile={setLinkedinFile}
-                icon={Linkedin}
-              />
+              <div className="u-input-group" style={{ marginTop: "1rem" }}>
+                <div className="u-input-label">
+                  LinkedIn PDF{" "}
+                  <span style={{ color: "var(--u-text3)" }}>(Optional)</span>
+                </div>
+                <UploadZone
+                  accept=".pdf"
+                  file={linkedinFile}
+                  onFile={setLinkedinFile}
+                  icon={<Linkedin className="w-7 h-7" />}
+                  subtext=".pdf"
+                />
+              </div>
 
               {error ? (
-                <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/40 rounded-2xl px-4 py-3">
+                <div className="u-auth-error" style={{ marginTop: 12 }}>
                   {error}
-                </p>
+                </div>
               ) : null}
 
-              <div className="flex flex-col sm:flex-row gap-4 mt-2">
-                <Button
+              <div className="u-form-actions">
+                <button
+                  className="u-btn-form"
+                  type="button"
                   onClick={() => setStep(1)}
-                  variant="secondary"
-                  className="flex-1"
                 >
                   Back
-                </Button>
-                <Button
+                </button>
+                <button
+                  className="u-btn-form primary"
+                  type="button"
                   onClick={submit}
-                  variant="primary"
-                  loading={loading}
-                  disabled={!cvFile}
-                  className="flex-1"
+                  disabled={!cvFile || loading}
                 >
-                  {loading ? "Uploading..." : "Create Candidate"}
-                </Button>
+                  <Sparkles className="w-4 h-4" />
+                  {loading ? "Uploading..." : "Create Candidate & Analyze"}
+                </button>
               </div>
-            </div>
+            </>
           )}
-        </GlassCard>
+        </div>
       </div>
     </Shell>
   );

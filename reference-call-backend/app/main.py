@@ -240,7 +240,7 @@ Transcript:
     }
 
     body = {
-        "model": "arcee-ai/trinity-large-preview:free",
+        "model": "openai/gpt-oss-120b:free",
         "messages": [
             {"role": "user", "content": prompt}
         ],

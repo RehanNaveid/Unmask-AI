@@ -1,8 +1,11 @@
 package com.example.Unmask.security;
+
 import com.example.Unmask.entity.HrUser;
 import com.example.Unmask.repository.HrUserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.*;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,10 +18,11 @@ public class HrUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         HrUser user = hrUserRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getEmail())
-                .password(user.getPassword())
-                .authorities(user.getRole())   // "ROLE_HR"
+                .password(user.getPassword() == null ? "" : user.getPassword())
+                .authorities(user.getRole())
                 .build();
     }
 }
