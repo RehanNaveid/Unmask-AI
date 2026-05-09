@@ -4,5 +4,6 @@ const env = {
   referenceBaseUrl: import.meta.env.VITE_REFERENCE_BASE_URL || "http://localhost:8002",
   googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
 };
-
+console.log(import.meta.env);
+console.log(env);
 export default env;
