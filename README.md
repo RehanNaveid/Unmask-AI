@@ -75,7 +75,7 @@ Not keyword matching. Not vibes. **Evidence-based hiring intelligence.**
 ### 📋 Candidate Dashboard
 > Manage and track all candidates with real-time analysis status.
 
-![Candidate Dashboard](Screenshot_2026-05-11_124111.png)
+![Candidate Dashboard]("C:\Users\HP\Pictures\Screenshots\Screenshot 2026-05-11 124111.png")
 
 <br/>
 
