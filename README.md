@@ -1,253 +1,389 @@
-# Unmask – AI-Powered Candidate Credibility Analyzer
+<div align="center">
 
-Unmask is a full-stack recruitment assistant that helps HR teams verify the credibility of candidates by cross-checking CVs, LinkedIn exports, and GitHub activity with an LLM-based “council” of models. It surfaces red/yellow flags, verifies projects, and generates structured interview questions so recruiters can make faster, better decisions. [web:442][web:446]
+<br/>
 
-> Tech stack: **Spring Boot + Supabase Postgres + Redis + React (JSX + Tailwind) + JWT Auth + Python/FastAPI LLM Council** 
+# 🎭 UNMASK
 
----
+### *Stop hiring liars. Start hiring builders.*
 
-## Features
+<br/>
 
-- **HR authentication & isolation**
-  - HR users register and log in with JWT-based auth.
-  - Each HR can only see and manage their own candidates (row-level ownership via `hr_user_id`).
+> **AI-powered candidate credibility & reference verification — before the first interview.**
 
-- **Candidate ingestion pipeline**
-  - Upload CV and optional LinkedIn PDF.
-  - Provide GitHub username; backend fetches and caches profile, repos, and events.
-  - Supabase Storage buckets for CV and LinkedIn files.
-  - GitHub responses cached via Redis to reduce API calls. [web:435]
-
-- **LLM council analysis**
-  - FastAPI “council” service orchestrates multiple OpenRouter models.
-  - Multi-stage reasoning:
-    - Normalizes CV / LinkedIn / GitHub into a fact sheet.
-    - Verifies flagship projects against real repositories.
-    - Assigns a credibility label and confidence score.
-    - Emits red/yellow flags, language alignment, and suggested questions. [web:440][web:454]
-
-- **Modern HR dashboard (React)**
-  - JWT-protected SPA built with React Router and Tailwind.
-  - Dashboard metrics: total candidates, completed analyses, suspicious vs trusted.
-  - Candidate list scoped to the current HR user.
-  - One-click access to candidate detail and full analysis.
-
-- **Deep candidate analysis report**
-  - Final verdict label and score.
-  - Red flags and yellow flags clearly separated.
-  - Narrative explanation and recommendation (`human_review`, etc.).
-  - Language alignment between CV tech stack and GitHub histogram.
-  - Project verification timeline for each key project.
-  - Suggested interview questions and consolidated reasons.
-  - Top GitHub repositories snapshot when available.
+<br/>
 
 ---
 
-## Architecture
+### 🌐 Live Now
 
-- **Backend (Spring Boot)**
-  - Spring Boot 3, Spring Security 6, Spring Data JPA. [web:447]
-  - JWT authentication for HR users (`hr_users` table).
-  - Domain entities: `candidates`, `candidate_facts`, `council_results`, `github_cache`, `job_runs`, `hr_users`.
-  - Supabase Postgres as the main relational store. [web:451]
-  - Redis (e.g., Upstash) for GitHub API caching.
-  - `CouncilService` calls the external FastAPI council over HTTP.
+<br/>
 
-- **LLM Council (FastAPI)**
-  - Python + FastAPI microservice.
-  - Uses OpenRouter models configured in `config.py`.
-  - Exposes `/api/analyze` endpoint which:
-    - Accepts `{ cv_json, linkedin_json, github_json }`.
-    - Returns a structured analysis JSON consumed by the Spring backend and React frontend.
+| | Service | Link |
+|:---:|:---|:---|
+| ⚡ | **Frontend App** | [unmask-ai-inky.vercel.app](https://unmask-ai-inky.vercel.app) |
+| 🔧 | **Spring Boot API** | [unmask-ai-1.onrender.com](https://unmask-ai-1.onrender.com) |
+| 🧠 | **LLM Council Service** | [unmask-ai.onrender.com](https://unmask-ai.onrender.com) |
+| 📞 | **AI Reference Call API** | [unmaks-reference-call.onrender.com](https://unmaks-reference-call.onrender.com) |
 
-- **Frontend (React)**
-  - React (JSX) + React Router v6.
-  - Tailwind CSS for a sleek, glassmorphism-style UI.
-  - Auth context storing JWT + HR info.
-  - API client attaching `Authorization: Bearer <token>` to all backend calls. [web:438][web:449]
+<br/>
 
-> You can add an architecture diagram image here once available.
+[![Frontend](https://img.shields.io/badge/Frontend-Live-00C853?style=for-the-badge&logo=vercel&logoColor=white)](https://unmask-ai-inky.vercel.app)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot%20API-Live-6DB33F?style=for-the-badge&logo=spring&logoColor=white)](https://unmask-ai-1.onrender.com)
+[![LLM Council](https://img.shields.io/badge/LLM%20Council-Live-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://unmask-ai.onrender.com)
+[![Voice AI](https://img.shields.io/badge/Voice%20AI%20API-Live-7C3AED?style=for-the-badge&logo=twilio&logoColor=white)](https://unmaks-reference-call.onrender.com)
+
+<br/>
 
 ---
 
-## Getting Started
+</div>
 
-### Prerequisites
+## The Problem
 
-- Java 21+
-- Maven
-- Node.js + npm
-- Postgres (Supabase instance)
-- Redis (Upstash or local)
-- Python 3.10+ (for the council service)
-- OpenRouter API key (for LLM calls)
+Recruiters are making six-figure hiring decisions based on bullet points.
 
-### Backend setup (Spring Boot)
+Most resume claims — projects, tech stacks, GitHub contributions, professional references — are **never verified**. Traditional ATS systems do keyword matching. They don't ask the harder question:
 
-1. Configure `application.properties` (or `application.yml`):
+> *Can this candidate actually back what they've written?*
 
-```
-spring.datasource.url=jdbc:postgresql://<supabase-host>:5432/<db-name>
-spring.datasource.username=<db-user>
-spring.datasource.password=<db-password>
-spring.jpa.hibernate.ddl-auto=update
+Unmask was built to answer that question — automatically, before a single interview is scheduled.
 
-app.supabase.url=https://<your-supabase-project>.supabase.co
-app.supabase.service-key=<supabase-service-role-key>
-app.supabase.storage-bucket-cv=cv
-app.supabase.storage-bucket-linkedin=linkedin
-
-app.jwt.secret=<your-long-random-secret>
-app.jwt.expiration-ms=86400000
-
-upstash.redis.url=<redis-url>
-upstash.redis.token=<redis-token>
-
-llm-council.url=http://localhost:8000
-```
-
-
-2. Run the backend:
-
-```
-./mvnw spring-boot:run
-```
-The API will be available at `http://localhost:8080`.
-
-### Council service (FastAPI)
-
-1. In the `council-service` directory:
-
-```
-pip install -r requirements.txt
-```
-
-2. Configure OpenRouter in `config.py` or via environment variables:
-
-```
-OPENROUTER_API_KEY = "sk-or-..." # or read from os.getenv
-COUNCIL_MODELS = [
-"tngtech/deepseek-r1t2-chimera:free",
-"nvidia/nemotron-nano-12b-v2-vl:free",
-"tngtech/deepseek-r1t-chimera:free"
-]
-CHAIRMAN_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
-```
-
-3. Run FastAPI:
-
-```
-uvicorn app.main:app --reload --port 8000
-```
-
-The council endpoint will be at `http://localhost:8000/api/analyze`.
-
-### Frontend (React)
-
-1. In the `frontend` directory:
-
-```
-npm install
-npm start
-```
-
-2. The React app runs on `http://localhost:3000` and calls the backend via `/api/...` routes (configure proxy or full URLs as needed).
+<br/>
 
 ---
 
-## Core Flows
+## What Unmask Does
 
-### HR Authentication
-
-- **Register**
-
-  `POST /api/auth/register`
+Unmask is a full-stack AI recruitment intelligence platform. It analyzes a candidate across every publicly verifiable signal — resume, GitHub, LinkedIn, live references — and delivers a structured credibility report to the recruiter.
 
 ```
+Resume  ──┐
+GitHub  ──┤──▶  LLM Council  ──▶  Trust Score + Verdict + Interview Questions
+LinkedIn──┘         │
+                    │
+              Reference Call ──▶  AI Voice Agent ──▶  Rehire Assessment
+```
+
+Not keyword matching. Not vibes. **Evidence-based hiring intelligence.**
+
+<br/>
+
+---
+
+## Screenshots
+
+### 📋 Candidate Dashboard
+> Manage and track all candidates with real-time analysis status.
+
+![Candidate Dashboard](Screenshot_2026-05-11_124111.png)
+
+<br/>
+
+### 🚩 AI Trust Analysis — Red & Yellow Flags
+> Instant credibility breakdown with a weighted Trust Score, red flags, yellow flags, and a persisted verdict.
+
+![AI Trust Analysis](Screenshot_2026-05-11_124139.png)
+
+<br/>
+
+### 🔬 Project Verification
+> Every claimed project is scored and categorized — verified, ambiguous, or unverifiable — with evidence-based reasoning.
+
+![Project Verification](Screenshot_2026-05-11_124201.png)
+
+<br/>
+
+### 💬 AI Interview Question Generation
+> Targeted questions generated from real gaps found in the candidate's repositories and claims.
+
+![Interview Questions](Screenshot_2026-05-11_124214.png)
+
+<br/>
+
+### 📞 AI Reference Call — Active Call
+> One click triggers a live AI voice call to the reference. Status updates in real time.
+
+![Reference Call Active](Screenshot_2026-05-11_125816.png)
+
+<br/>
+
+### 📄 AI Reference Call — Generated Summary
+> The AI summarizes the full call into a professional HR-style evaluation with rehire eligibility and confidence scoring.
+
+![Reference Call Summary](Screenshot_2026-05-11_125828.png)
+
+<br/>
+
+---
+
+## Core Features
+
+### 🔍 AI Candidate Credibility Analysis
+
+A multi-signal analysis pipeline that digs into the candidate's full digital footprint:
+
+- Resume parsing with structured fact extraction
+- LinkedIn cross-verification against resume claims
+- GitHub repository inspection and authenticity scoring
+- Programming language and tech stack validation
+- Contribution timeline plausibility checks
+- Public activity and consistency analysis
+
+**Every analysis delivers:**
+
+| Signal | Output |
+|:---|:---|
+| 🎯 Trust Score | Weighted credibility rating across all signals |
+| ⚖️ Final Verdict | Hire / Review / Reject with reasoning |
+| 🚩 Red Flags | High-risk discrepancies requiring immediate follow-up |
+| 🟡 Yellow Flags | Ambiguous signals worth a closer look |
+| 🔬 Repository Verification | Real GitHub authenticity analysis |
+| 🧩 Tech Alignment Report | Claims vs. actual code evidence |
+| 💬 Interview Questions | Dynamically generated, gap-targeted questions |
+| 📋 Hiring Recommendation | Synthesized, actionable recruiter decision |
+
+<br/>
+
+---
+
+### 🧠 Multi-LLM Council Architecture
+
+Most AI tools run one model and call it a day. Unmask runs a **council**.
+
+The LLM Council is a FastAPI service that orchestrates multiple independent language models via OpenRouter — each reasoning about the candidate separately, then synthesizing a final verdict together.
+
+```
+Candidate Data
+      │
+      ├──▶ Model A ──▶ Credibility Score
+      ├──▶ Model B ──▶ Risk Detection
+      ├──▶ Model C ──▶ Tech Validation
+      │
+      └──▶ Synthesis Engine ──▶ Final Report
+```
+
+Independent reasoning chains reduce hallucination and evaluation bias. More signal. More confidence. Better hires.
+
+<br/>
+
+---
+
+### 📞 AI-Powered Reference Verification
+
+Reference calls are broken. They're slow, scripted, and tell you almost nothing.
+
+Unmask automates them entirely. One click from the recruiter dashboard triggers a **live AI voice call** to the reference — conducted by an ElevenLabs conversational AI agent trained for HR-style conversations.
+
+```
+Recruiter clicks "Call Reference"
+              ↓
+       Twilio Voice Infrastructure
+              ↓
+    ElevenLabs Conversational AI Agent
+              ↓
+     Real-Time Transcript Capture
+              ↓
+      OpenRouter LLM Summarization
+              ↓
+  ┌─────────────────────────────────┐
+  │  Structured Reference Report    │
+  │  • Rehire Eligibility           │
+  │  • Sentiment Analysis           │
+  │  • Confidence Scoring           │
+  │  • Professional HR Narrative    │
+  └─────────────────────────────────┘
+```
+
+No scheduling. No awkward silences. No vague "they were great to work with."
+
+<br/>
+
+---
+
+### 💬 Targeted Interview Question Generation
+
+Unmask doesn't generate generic interview questions. It generates questions **based on what it couldn't verify**.
+
+Found a claimed technology with no matching code in GitHub? → Question generated.  
+Detected an architecture pattern inconsistent with project scale? → Question generated.  
+Noticed a contribution timeline that doesn't add up? → Question generated.
+
+**Example:**
+> *"Can you walk through how the Spring Boot backend integrates with the React frontend in your project? Specifically, how is JWT token validation handled between the two services?"*
+
+<br/>
+
+---
+
+## System Architecture
+
+```
+                    ┌──────────────────────┐
+                    │    React Frontend     │
+                    │  Tailwind CSS · Vercel│
+                    └──────────┬───────────┘
+                               │
+                        JWT / OAuth 2.0
+                               │
+            ┌──────────────────┴──────────────────┐
+            │                                     │
+  ┌─────────▼──────────┐               ┌──────────▼──────────┐
+  │  Spring Boot API   │               │  Reference Call API  │
+  │  Candidate CRUD    │               │  FastAPI · Twilio    │
+  │  JWT Security      │               │  ElevenLabs AI       │
+  └─────────┬──────────┘               └──────────┬──────────┘
+            │                                     │
+  ┌─────────▼──────────┐               ┌──────────▼──────────┐
+  │   Supabase DB      │               │  ElevenLabs ConvAI   │
+  │   + File Storage   │               │  Voice Agent         │
+  └─────────┬──────────┘               └─────────────────────┘
+            │
+  ┌─────────▼──────────┐
+  │   Redis / Upstash  │
+  │   GitHub Caching   │
+  └─────────┬──────────┘
+            │
+  ┌─────────▼──────────┐
+  │   LLM Council      │
+  │   FastAPI          │
+  │   OpenRouter       │
+  └────────────────────┘
+```
+
+<br/>
+
+---
+
+## Tech Stack
+
+### Frontend
+| Technology | Role |
+|:---|:---|
+| React + React Router | UI framework & routing |
+| Tailwind CSS | Styling |
+| Lucide Icons | Iconography |
+| Vercel | Deployment & CDN |
+
+### Backend
+| Technology | Role |
+|:---|:---|
+| Java 21 + Spring Boot 3 | Core API |
+| Spring Security 6 | Auth & access control |
+| JWT + Google OAuth 2.0 | Authentication |
+| Maven | Build tooling |
+
+### AI & LLM Layer
+| Technology | Role |
+|:---|:---|
+| Python FastAPI | LLM Council service |
+| OpenRouter | Multi-model API gateway |
+| Prompt Engineering Pipelines | Structured reasoning & output |
+
+### Voice AI & Telephony
+| Technology | Role |
+|:---|:---|
+| ElevenLabs Conversational AI | Voice reference agent |
+| Twilio Voice | Outbound call infrastructure |
+| OpenRouter LLM | Transcript analysis & summarization |
+
+### Infrastructure
+| Technology | Role |
+|:---|:---|
+| Supabase PostgreSQL | Primary database |
+| Supabase Storage | File & asset storage |
+| Redis / Upstash | GitHub data caching |
+| Render | Backend deployment |
+| Docker | Containerized workflows |
+
+<br/>
+
+---
+
+## API Reference
+
+**Reference Call Service** — `https://unmaks-reference-call.onrender.com`
+
+<br/>
+
+#### `POST /api/reference-call` — Start a Reference Call
+
+```json
 {
-"email": "hr1@example.com
-",
-"password": "StrongPass123",
-"fullName": "HR One",
-"company": "Acme Corp",
-"position": "Talent Acquisition"
+  "candidate_id": "uuid",
+  "candidate_name": "Rehan Naveid",
+  "reference_name": "Ragul",
+  "phone_number": "+919876543210"
 }
 ```
 
-### Candidate Lifecycle
+#### `POST /api/reference-call/{id}/fetch-transcript` — Retrieve Transcript
 
-- **Create candidate**
+#### `POST /api/reference-call/{id}/generate-summary` — Generate Evaluation
 
-`POST /api/candidates` (multipart/form-data):
+Returns: HR narrative · Rehire eligibility · Sentiment · Confidence score · Reliability indicators
 
-- `name` (text)
-- `email` (text)
-- `github_username` (text)
-- `cv` (file, required)
-- `linkedin` (file, optional)
-
-Returns a `CandidateDTO` with `id`, `status`, and basic info. Backend stores files in Supabase and triggers async processing.
-
-- **List candidates for current HR**
-
-`GET /api/candidates`  
-Returns a list of `CandidateDTO` objects owned by the logged-in HR.
-
-- **Get candidate detail**
-
-`GET /api/candidates/{id}`  
-Returns a `CandidateDTO` with latest facts and council summary (if available).
-
-- **Get full analysis**
-
-`GET /api/candidates/{id}/analysis`  
-Returns a `CandidateAnalysisDTO` containing:
-
-- `label`, `score`, `redFlags`, `yellowFlags`
-- `explanation`, `recommendation`
-- `languageAlignment` (notes, supported/missing languages)
-- `suggestedQuestions`
-- `consolidatedReasons`
-- `projectVerification[]`
-- `topRepos[]`
-
-- **Delete candidate**
-
-`DELETE /api/candidates/{id}`  
-Deletes the candidate, related facts, council results, and associated files (CV/LinkedIn).
-
-All candidate routes enforce ownership: HRs can only access their own candidates.
+<br/>
 
 ---
 
-## UI Overview
+## Security
 
-<img width="1920" height="1080" alt="Screenshot 2025-12-07 222414" src="https://github.com/user-attachments/assets/cf1f4b2b-c6e1-4163-b920-3ad86e68d088" />
-<img width="1920" height="1080" alt="Screenshot 2025-12-07 222429" src="https://github.com/user-attachments/assets/ed356e0d-4be1-433c-8e06-6059ad0424a5" />
-<img width="1920" height="1080" alt="Screenshot 2025-12-07 222456" src="https://github.com/user-attachments/assets/3aa02db1-6319-4a5b-b4e2-6e4b3c6a0557" />
+| Layer | Control |
+|:---|:---|
+| Authentication | Google OAuth 2.0 + JWT sessions |
+| Authorization | Recruiter-scoped candidate isolation |
+| API Protection | All endpoints require valid JWT |
+| Data Layer | Supabase Row-Level Security |
+| Transport | CORS with strict origin controls |
+| Config | Environment variable validation on startup |
 
-
-HR login form (email + password) with a gradient background and centered glass card.
-- **Dashboard** – Metric tiles + candidates table, filters by status, action buttons.
-- **New Candidate** – Multi-field upload with a visual pipeline (Upload → Process → Analyze).
-- **Candidate Detail** – Core candidate info, file links, snapshot of GitHub facts.
-- **Analysis Report** – Rich report showing verdict, flags, language alignment, project verification timeline, suggested questions, and top repos.
-
----
-
-## Roadmap
-
-- Support job descriptions and role-specific credibility scoring.
-- Bulk import of candidates and batched council runs.
-- Exportable PDF reports for each candidate.
-- Fine-grained access roles (e.g., reviewer vs admin).
-- More advanced analytics on candidate pool over time. [web:396][web:405]
+<br/>
 
 ---
 
-## Acknowledgements
+## Local Development
 
-- Spring Boot & Spring Security community examples for JWT auth. [web:435][web:447]
-- OpenRouter and model providers used in the LLM council. [web:440]
-- Inspiration from modern HR dashboard and AI-recruitment UI concepts. [web:398][web:408]
+**Prerequisites:** Java 21 · Node.js 18+ · Python 3.11+ · Docker (optional)
 
+```bash
+# Clone
+git clone https://github.com/your-username/unmask.git && cd unmask
+
+# Frontend
+cd frontend && npm install && npm run dev
+
+# Spring Boot API
+cd backend && ./mvnw spring-boot:run
+
+# LLM Council
+cd llm-council && pip install -r requirements.txt && uvicorn main:app --reload
+
+# Reference Call Service
+cd reference-call && pip install -r requirements.txt && uvicorn main:app --port 8001 --reload
+```
+
+> ⚠️ Requires env vars for Supabase, JWT secret, Google OAuth, OpenRouter, Twilio, and ElevenLabs. See `.env.example` in each service directory.
+
+<br/>
+
+---
+
+## Author
+
+**Rehan Naveid** — Full-Stack & AI Engineer
+
+`Java` `Spring Boot` `React` `FastAPI` `LLM Engineering` `Distributed Systems` `Voice AI` `AI Recruitment Systems`
+
+<br/>
+
+---
+
+<div align="center">
+
+*Most tools parse resumes. Unmask validates humans.*
+
+<br/>
+
+Built with ☕ Java · 🐍 Python · ⚛️ React · 🧠 a council of LLMs
+
+</div>
