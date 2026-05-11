@@ -183,6 +183,12 @@ public class GithubService {
         // if (githubToken != null && !githubToken.isBlank()) {
         //     headers.setBearerAuth(githubToken);
         // }
+        if (githubToken != null && !githubToken.isBlank()) {
+            headers.setBearerAuth(githubToken);
+            log.info("GitHub token attached");
+        } else {
+            log.warn("GitHub token missing");
+        }
         return headers;
     }
 
