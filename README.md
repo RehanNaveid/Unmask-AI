@@ -75,44 +75,46 @@ Not keyword matching. Not vibes. **Evidence-based hiring intelligence.**
 ### 📋 Candidate Dashboard
 > Manage and track all candidates with real-time analysis status.
 
-![Candidate Dashboard]("C:\Users\HP\Pictures\Screenshots\Screenshot 2026-05-11 124111.png")
+![Candidate Dashboard]<img width="1920" height="1080" alt="Screenshot 2026-05-11 124111" src="https://github.com/user-attachments/assets/095a30c5-3900-42d2-b4e7-383659c0d2a9" />
+
 
 <br/>
 
 ### 🚩 AI Trust Analysis — Red & Yellow Flags
 > Instant credibility breakdown with a weighted Trust Score, red flags, yellow flags, and a persisted verdict.
 
-![AI Trust Analysis](Screenshot_2026-05-11_124139.png)
+![AI Trust Analysis]<img width="1920" height="1080" alt="Screenshot 2026-05-11 124139" src="https://github.com/user-attachments/assets/b71926a4-a2a2-4c74-b087-2d74a5816346" />
+
 
 <br/>
 
 ### 🔬 Project Verification
 > Every claimed project is scored and categorized — verified, ambiguous, or unverifiable — with evidence-based reasoning.
 
-![Project Verification](Screenshot_2026-05-11_124201.png)
+![Project Verification]<img width="1920" height="1080" alt="Screenshot 2026-05-11 124201" src="https://github.com/user-attachments/assets/77556262-4291-4c35-942e-c5e5cd9a7fd0" />
 
 <br/>
 
 ### 💬 AI Interview Question Generation
 > Targeted questions generated from real gaps found in the candidate's repositories and claims.
 
-![Interview Questions](Screenshot_2026-05-11_124214.png)
+![Interview Questions]<img width="1920" height="1080" alt="Screenshot 2026-05-11 124214" src="https://github.com/user-attachments/assets/0d4dc3c9-4ee7-4366-8503-b50fa670c193" />
+
 
 <br/>
 
 ### 📞 AI Reference Call — Active Call
 > One click triggers a live AI voice call to the reference. Status updates in real time.
 
-![Reference Call Active](Screenshot_2026-05-11_125816.png)
+![Reference Call Active]<img width="1920" height="1080" alt="Screenshot 2026-05-11 125816" src="https://github.com/user-attachments/assets/fe49d1c0-6a54-4bc6-a46a-cb5647d6c4aa" />
 
 <br/>
 
 ### 📄 AI Reference Call — Generated Summary
 > The AI summarizes the full call into a professional HR-style evaluation with rehire eligibility and confidence scoring.
 
-![Reference Call Summary](Screenshot_2026-05-11_125828.png)
+![Reference Call Summary]<img width="1920" height="1080" alt="Screenshot 2026-05-11 125828" src="https://github.com/user-attachments/assets/cae8e444-4663-4b4d-af1e-46db62e8f457" />
 
-<br/>
 
 ---
 
